@@ -1,3 +1,5 @@
+#pragma once
+
 #include <DebuggerAssets/debugger/debugger.hpp>
 
 #include <cstdint>
@@ -7,7 +9,6 @@
 #define LexerErrorEnd "\n"
 
 namespace Util {
-
     enum class ErrorCode {
         None,
         UnexpectedCharacter,
@@ -107,6 +108,8 @@ namespace Util {
         };
     };
 
+    using Source = Util::Source;
+
     struct Token
     {
         TokenType token_type = TokenType::Error;
@@ -149,6 +152,7 @@ namespace Util {
         LexerContext lexer_context;
 
         public:
+        Lexer() = default;
         Lexer(Source& source)
         {
             lexer_context = LexerContext(source);
@@ -157,3 +161,7 @@ namespace Util {
         Token get_next_token();
     };
 }   
+
+
+#undef LexerError
+#undef LexerErrorEnd

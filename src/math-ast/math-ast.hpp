@@ -1,7 +1,7 @@
 #pragma once
 
 #include <lexer/lexer.hpp>
-#include "token_normalizer/token_normalizer.hpp"
+#include <token_normalizer/token_normalizer.hpp>
 
 static_assert(
     sizeof(size_t) == sizeof(uintptr_t),

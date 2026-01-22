@@ -1,4 +1,4 @@
-#include "lexer.hpp"
+#include <lexer.hpp>
 
 #include <string>
 #include <array>
