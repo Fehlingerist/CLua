@@ -29,10 +29,15 @@ namespace Util {
       return ((special_char >= '!' && special_char <= '~') && !is_numeric_char(special_char) && !is_letter_char(special_char));
    };
 
+   inline bool is_newline_char(char new_line_char)
+   {
+      return new_line_char == '\n';
+   };
+
    inline bool is_whitespace_char(char whitespace_char)
    {
-      return whitespace_char == ' ' || whitespace_char == '\t' || whitespace_char == '\r' || whitespace_char == '\n';
-   };
+      return whitespace_char == ' ' || whitespace_char == '\t' || whitespace_char == '\r';
+   }; //it was perhaps a mistake that \n is treated as a whitespace instead of a special symbol?
 
    inline bool is_unicode(char unicode_char)
    {
@@ -52,7 +57,8 @@ namespace Util {
    Numeric,
    Whitespace,
    EndOfFile,
-   Symbol, //synonymous to special character!!@#Aaaadsdąąś
+   Symbol, 
+   NewLine
  };
 
  static const auto character_map = [](){
@@ -80,6 +86,11 @@ namespace Util {
       else if (is_whitespace_char(current_character))
       {
          character_map[current_character] = CharacterType::Whitespace;
+         continue;
+      }
+      else if(is_newline_char(current_character))
+      {
+         character_map[current_character] = CharacterType::NewLine;
          continue;
       }
       else if (is_unicode(current_character))
@@ -283,6 +294,20 @@ namespace Util {
    };
  };
 
+ void consume_new_line_token(LexerContext& lexer_context)
+ {
+   auto current_char = lexer_context.source.see_current();
+
+   Assert(
+      character_map[current_char] == CharacterType::NewLine,
+      LexerError
+      "expected new line char"
+      LexerErrorEnd
+   )
+   
+   lexer_context.source.consume();
+ };
+
  void consume_unicode_token(LexerContext& lexer_context)
  {
    auto current_char = lexer_context.source.see_current();
@@ -315,6 +340,8 @@ namespace Util {
          return TokenType::SpecialChar;
       case CharacterType::Whitespace:
          return TokenType::Whitespace;
+      case CharacterType::NewLine:
+         return TokenType::NewLine;
       case CharacterType::EndOfFile:
          return TokenType::EndOfFile;
       default:
@@ -333,12 +360,6 @@ namespace Util {
 
    switch (token_type)
    {
-   case TokenType::EndOfFile:
-      consume_eof_token(lexer_context);
-      break;
-   case TokenType::Error:
-      consume_error_token(lexer_context);
-      break;
    case TokenType::Identifier:
       consume_identifier_token(lexer_context);
       break;
@@ -353,6 +374,15 @@ namespace Util {
       break;
    case TokenType::Whitespace:
       consume_whitespace_token(lexer_context);
+      break;
+   case TokenType::NewLine:
+      consume_new_line_token(lexer_context);
+      break;
+   case TokenType::EndOfFile:
+      consume_eof_token(lexer_context);
+      break;
+   case TokenType::Error:
+      consume_error_token(lexer_context);
       break;
    default:
       consume_error_token(lexer_context);

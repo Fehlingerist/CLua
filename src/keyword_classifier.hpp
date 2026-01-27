@@ -42,7 +42,7 @@
     Keyword(StaticAssert, "static_assert") \
     Keyword(Sizeof, "sizeof")
 
-namespace AST {
+namespace KeywordClassifier {
     enum class Keyword {
         #define Keyword(KeywordValue,KeywordString)\
             KeywordValue,    

@@ -5,6 +5,7 @@
 #include <lexer/lexer.hpp>
 
 #include <keyword_classifier.hpp>
+#include <symbol_classifier.hpp>
 #include <DebuggerAssets/debugger/debugger.hpp>
 
 #define NormalizerError "Normalizer Error: "
@@ -13,6 +14,9 @@
 namespace Normalizer{
     enum class NormalErrorCode{
         None,
+        CommentWithoutClosure,
+        UnexpectedToken,
+        UnknowSymbol
     };
 
     enum class NormalTokenType {
@@ -144,6 +148,10 @@ namespace Normalizer{
         TokenStreamReader token_stream_reader;
 
         std::vector<NormalError> errors;
+
+        std::vector<KeywordClassifier::Keyword> keyword_list;
+        std::vector<SymbolClassifier::SymbolKind> symbol_list;
+
         NormalTokenType ultimate_token_type;
 
         NormalTokenStreamContext(Util::Source& source): token_stream_reader(source)
@@ -157,6 +165,16 @@ namespace Normalizer{
             errors.push_back(error);
 
             ultimate_token_type = NormalTokenType::Error;
+        };
+
+        void emit_keyword(KeywordClassifier::Keyword keyword)
+        {
+            keyword_list.push_back(keyword);
+        };
+
+        void emit_symbol(SymbolClassifier::SymbolKind symbol)
+        {
+            symbol_list.push_back(symbol);
         };
     };
 
@@ -172,8 +190,7 @@ namespace Normalizer{
         public:
         inline NormalToken get_next_token()
         {
-            auto next_token = process_next_token();
-            return next_token;
+            return process_next_token();
         };
     };
 }

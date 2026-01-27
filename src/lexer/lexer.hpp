@@ -22,8 +22,9 @@ namespace Util {
         Numeric,
         SpecialChar,
         Whitespace,
+        NewLine,
         EndOfFile,
-        Error,  
+        Error  
     };
 
     struct SourceView {
