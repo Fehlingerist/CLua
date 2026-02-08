@@ -1,30 +1,56 @@
 #pragma once
 
 #include <DebuggerAssets/debugger/debugger.hpp>
+#include <symbol_classifier.hpp>
+#include <keyword_classifier.hpp>
 
-#include <cstdint>
+#include <stdint.h>
 #include <vector>
-
-#define LexerError "Lexer Error: "
-#define LexerErrorEnd "\n"
+#include <type_traits>
+#include <concepts>
 
 namespace Util {
-    enum class ErrorCode {
+
+    using namespace std::string_literals;
+
+    auto LexerError = "Lexer Error: "s;
+    auto LexerErrorEnd = "\n"s;
+
+    enum class ErrorCode: uint8_t {
         None,
         UnexpectedCharacter,
         InvalidByte,
-        TruncatedSequence
+        TruncatedUnicodeSequence,
+        TruncatedNumberSequence,
+        MalformedNumber,
+        UnclosedComment,
     };
 
-    enum class TokenType {
+    enum class TokenType: uint8_t {
         Identifier,
-        UnicodeSequence,
         Numeric,
-        SpecialChar,
+        Symbol,
         Whitespace,
         NewLine,
+        Comment,
+        String,
+        Char,
         EndOfFile,
-        Error  
+        Error,
+        None
+    };
+
+    enum class NumberType: uint8_t {
+        Integer,
+        Float,
+        None,
+    };
+
+    enum class NumberBase: uint8_t  {
+        Hexdecimal,
+        Decimal,
+        Binary,
+        None,
     };
 
     struct SourceView {
@@ -45,19 +71,24 @@ namespace Util {
         Source(unsigned char* source_buffer, size_t source_size) : source_buffer(source_buffer), source_size(source_size), index(0)
         {
             Assert(source_buffer,
-                LexerError 
-                "Source buffer must exist" 
+                LexerError +
+                "Source buffer must exist"s +
                 LexerErrorEnd
             );
         };
 
-        Source slice(size_t start_index = 0,size_t length)
+        Source slice(size_t start_index = 0,size_t length = 0)
         {
+            Assert(length > 0,
+                LexerError +
+                "length must be greater than 0"s +
+                LexerErrorEnd
+            )
             size_t end_index = start_index + length;
             Assert(
                 end_index <= source_size,
-                LexerError
-                "broken assumption that end_index <= source_size is true"
+                LexerError +
+                "broken assumption that end_index <= source_size is true"s +
                 LexerErrorEnd
             )
             return Source(source_buffer + start_index,length);
@@ -67,8 +98,8 @@ namespace Util {
         {
             Assert(
                 source_size > start_index,
-                LexerError
-                "source_size > start_index is not true"
+                LexerError +
+                "source_size > start_index is not true"s +
                 LexerErrorEnd
             )
 
@@ -80,34 +111,35 @@ namespace Util {
             return source_buffer;
         };
 
-        inline bool can_consume_sentinel()
+        inline bool can_consume_sentinel(size_t consume_distance = 1)
         {
             //source_size, because the additional character is a null terminator
-            return index < source_size + 1;
+            return index + consume_distance - 1 < source_size + 1;
         };
 
-        inline bool can_consume()
+        inline bool can_consume(size_t consume_distance = 1)
         {
-            return index < source_size;
+            return index + consume_distance - 1 < source_size;
         };
 
-        inline void consume()
+        inline unsigned char consume(size_t consume_distance = 1)
         {
             Assert(
-                can_consume_sentinel(),
-                LexerError 
-                "index is reading beyond the source_buffer"
+                can_consume_sentinel(consume_distance),
+                LexerError +
+                "index is reading beyond the source_buffer"s +
                 LexerErrorEnd
             );
-            index++;
+            index += consume_distance;
+            return source_buffer[index];
         };
 
         inline unsigned char see_current()
         {
             Assert(
                 can_consume_sentinel(),
-                LexerError 
-                "index is reading beyond the source_buffer"
+                LexerError +
+                "index is reading beyond the source_buffer"s + 
                 LexerErrorEnd
             );
             if (!can_consume())
@@ -131,8 +163,8 @@ namespace Util {
         {   
             Assert(
                 can_peek_sentinel(peek_distance),
-                LexerError 
-                "Can't peek here" 
+                LexerError +
+                "Can't peek here"s + 
                 LexerErrorEnd
             );
             if (!can_peek())
@@ -143,41 +175,221 @@ namespace Util {
         };
     };
 
-    using Source = Util::Source;
-
-    struct Token
+    struct TokenBase
     {
         TokenType token_type = TokenType::Error;
         size_t length = 0;
         size_t offset = 0;
     };
+    template <typename T>
+    struct TokenKind {
+        inline static constexpr TokenType value = TokenType::None;
+    };
+
+    struct IdentifierToken : TokenBase {};
+    template<>
+    struct TokenKind<IdentifierToken> {
+        inline static constexpr TokenType value = TokenType::Identifier;
+    };  
+
+    struct NumericToken : TokenBase {};
+    template<>
+    struct TokenKind<NumericToken> {
+        inline static constexpr TokenType value = TokenType::Numeric;
+    };  
+
+    struct SymbolToken : TokenBase {};
+    template<>
+    struct TokenKind<SymbolToken> {
+        inline static constexpr TokenType value = TokenType::Symbol;
+    };  
+
+    struct WhitespaceToken : TokenBase {};
+    template<>
+    struct TokenKind<WhitespaceToken> {
+        inline static constexpr TokenType value = TokenType::Whitespace;
+    };  
+
+    struct CommentToken: TokenBase {};
+    template<>
+    struct TokenKind<CommentToken>
+    {
+        inline static constexpr TokenType value = TokenType::Comment;
+    };
+
+    struct NewLineToken : TokenBase {};
+    template<>
+    struct TokenKind<NewLineToken> {
+        inline static constexpr TokenType value = TokenType::NewLine;
+    };  
+
+    struct EOFToken : TokenBase {};
+    template<>
+    struct TokenKind<EOFToken> {
+        inline static constexpr TokenType value = TokenType::EndOfFile;
+    };  
+
+    struct ErrorToken : TokenBase {};   
+    template<>
+    struct TokenKind<ErrorToken> {
+        inline static constexpr TokenType value = TokenType::Error;
+    };  
+
+    struct NoToken : TokenBase {};   
+    template<>
+    struct TokenKind<NoToken> {
+        inline static constexpr TokenType value = TokenType::None;
+    };  
+
+    struct TokenGeneric : TokenBase {
+
+        template <typename T>
+        requires std::derived_from<T, TokenBase>
+        T& as() {
+            static_assert(sizeof(T) == sizeof(TokenGeneric), 
+                "Relabeling failed: Derived struct has extra data members"s);
+        
+            const TokenType expected = TokenKind<T>::value;
+
+            static_assert(expected != TokenType::None,
+                "Invalid token template type is being used, they must be derived from TokenBase"s
+            );
+
+            Assert(
+                token_type == expected,
+                LexerError 
+                + "expected this token type: "s 
+                + std::to_string(static_cast<int>(expected)) 
+                + " got: "s 
+                + std::to_string(static_cast<int>(token_type)) 
+                + LexerErrorEnd
+            );
+
+            return reinterpret_cast<T&>(*this);
+        }
+
+        template <typename T>
+        requires std::derived_from<T, TokenBase>
+        const T& as() const {
+            static_assert(sizeof(T) == sizeof(TokenGeneric), "Size mismatch"s);
+            
+            const TokenType expected = TokenKind<T>::value;
+
+            static_assert(expected != TokenType::None,
+                "Invalid token template type is being used, they must be derived from TokenBase"s
+            );
+
+            Assert(
+                token_type == expected,
+                LexerError 
+                + "expected this token type: "s 
+                + std::to_string(static_cast<int>(expected)) 
+                + " got: "s 
+                + std::to_string(static_cast<int>(token_type)) 
+                + LexerErrorEnd
+            );
+
+            return reinterpret_cast<const T&>(*this);
+        }
+    };
 
     struct Error {
-        size_t offset = 0;
         ErrorCode error_code;
+    };
+
+    struct NumberHint {
+        NumberType number_type = NumberType::None;
+        NumberBase number_base = NumberBase::None;
     };
     
     class LexerContext {
+        private:
+        bool emitted = false;
+
         public:
         Source source;
         std::vector<Error> errors;
+        std::vector<NumberHint> numbers;
+        std::vector<SymbolClassifier::SymbolKind> symbols;  
+        std::vector<KeywordClassifier::Keyword> keywords;
 
-        TokenType ultimate_token_type;
-        TokenType original_token_type; //this variable is strictly for recover if user chooses to do so
+        TokenType ultimate_token_type = TokenType::Error;
+        TokenType original_token_type = ultimate_token_type; //this variable is strictly for recover if user chooses to do so
 
         LexerContext() = default;
         LexerContext(Source& source): source(source)
         {};
 
-        void emit_error(ErrorCode error_code)
+        void token_enter()
         {
+            emitted = false;
+        };
+
+        private:
+        inline void on_emit(){
+            Assert(
+                !emitted,
+                LexerError+
+                "trying to emit hint multiple times within the same token"s +
+                LexerErrorEnd
+            )
+
+            emitted = true;
+        }
+        
+        public:
+
+        constexpr inline bool has_emitted_report()
+        {
+            return emitted;
+        };
+
+        void record_error(ErrorCode error_code)
+        {
+            on_emit();
+
             Error error;
             error.error_code = error_code;
-            error.offset = source.index;
             errors.push_back(error);
 
             original_token_type = ultimate_token_type;
-            ultimate_token_type = TokenType::Error;
+            ultimate_token_type = TokenKind<ErrorToken>::value;
+        };
+
+        void record_number(NumberBase number_base, NumberType number_type)
+        {
+            on_emit();
+
+            NumberHint number_hint;
+            number_hint.number_base = number_base;
+            number_hint.number_type = number_type;
+
+            numbers.push_back(number_hint);
+
+            original_token_type = ultimate_token_type;
+            ultimate_token_type = TokenKind<NumericToken>::value;
+        };
+
+        void record_symbol(SymbolClassifier::SymbolKind symbol)
+        {
+            on_emit();
+
+            symbols.push_back(symbol);
+
+            original_token_type = ultimate_token_type;
+            ultimate_token_type = TokenKind<SymbolToken>::value;
+        };
+
+        void record_identifier(std::string_view identifier)
+        {
+            on_emit();
+
+            auto keyword_type = KeywordClassifier::get_keyword_type(identifier);
+
+            keywords.push_back(keyword_type);
+
+            original_token_type = ultimate_token_type;
+            ultimate_token_type = TokenKind<IdentifierToken>::value;
         };
     };
 
@@ -188,15 +400,24 @@ namespace Util {
 
         public:
         Lexer() = default;
-        Lexer(Source& source)
+        Lexer(Util::Source& source)
         {
             lexer_context = LexerContext(source);
         };
 
-        Token get_next_token();
+        private:
+        TokenGeneric get_next_token();
+        
+        public:
+        TokenGeneric process_next_token()
+        {
+            lexer_context.token_enter();
+            return get_next_token();
+        };
+
+        Error get_last_error()
+        {
+            return lexer_context.errors.front();
+        };
     };
 }   
-
-
-#undef LexerError
-#undef LexerErrorEnd

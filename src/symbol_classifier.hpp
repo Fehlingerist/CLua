@@ -1,8 +1,11 @@
+#pragma once
+
 #include <string>
 #include <unordered_map>
+#include <stdint.h>
 
 namespace SymbolClassifier {
-enum class SymbolKind {
+enum class SymbolKind: uint8_t {
     PLUS,
     DOUBLE_PLUS,
     PLUS_EQUAL,
@@ -129,5 +132,5 @@ std::unordered_map<std::string, SymbolKind> normalized_symbols = {
         }
 
         return iterator->second;
-    }
+    };
 }

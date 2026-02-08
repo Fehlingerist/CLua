@@ -1,12 +1,10 @@
-#include <math-ast/math-ast.hpp>
 #include <lexer/lexer.hpp>
 #include <iostream>
 #include <string>
 
 int main()
 {
-    using namespace AST;
-    std::cout << "Write a math expression: " << std::endl;
+    std::cout << "Write some expression expression: " << std::endl;
     
     std::string input;
     
@@ -15,10 +13,23 @@ int main()
         return 1;
     }
 
-    Util::Source source((unsigned char *)input.data(),input.length());
+    Util::Source source(reinterpret_cast<unsigned char*>(input.data()),input.length());
 
-    MathEvaluator math_eval;
-    math_eval.eval(source);
+    Util::Lexer lexer(source);
+
+    auto current_token = lexer.process_next_token();
+
+    while (current_token.token_type != Util::TokenType::EndOfFile)
+    {
+        if (current_token.token_type == Util::TokenType::Error)
+        {
+            std::cout << "error enocuntered while interpreting the file" << std::endl;
+            std::cout << "error code: " << (unsigned)lexer.get_last_error().error_code << std::endl;
+        };
+
+        std::cout << "Token Type: " << (unsigned)current_token.token_type << " " << std::string_view(input.data() + current_token.offset,current_token.length) << std::endl;
+        current_token = lexer.process_next_token();
+    }
 
     return 0;
 }
