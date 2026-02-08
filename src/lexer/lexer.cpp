@@ -1,394 +1,549 @@
-#include <lexer.hpp>
+#include <lexer/lexer.hpp>
 
 #include <string>
 #include <array>
 
 /*
-As a clarification here, the number parser here will be dumb and no number
-validation will be performed here. It will be done at an AST level, because the number type might here be actually inside 
-of a string or a comment and this makes the error irrelevant
+   Notes:
+      -hex number consuming function has room for optimizations LUT[f-a + F-A + 9-0 char group] 
+      -
 */
 
-#define LexerError "Lexer Error: "
-#define LexerErrorEnd "\n"
-
 namespace Util { 
- namespace TypeClassificator {
-   inline bool is_numeric_char(char numeric_char)
-   {
-      return numeric_char >= '0' && numeric_char <= '9';
+   using namespace std::string_literals;
+
+   enum class CharacterType : uint8_t {
+      Letter,
+      Unicode,
+      Numeric,
+      Symbol, 
+      Whitespace,
+      NewLine,
+      EndOfFile,
+      Error,
    };
+
+   namespace TypeClassificator {
+      inline bool is_neutral_char_type(CharacterType char_type)
+      {
+         switch (char_type)
+         {
+         case CharacterType::Whitespace: case CharacterType::NewLine: case CharacterType::EndOfFile:
+            return true;
+         default:
+            return false;
+         }
+      };
+
+      inline bool is_numeric_char(char numeric_char)
+      {
+         return numeric_char >= '0' && numeric_char <= '9';
+      };
  
-   inline bool is_letter_char(char letter_char)
-   {
-      return (letter_char >= 'A' && letter_char <= 'Z') || (letter_char >= 'a' && letter_char <= 'z') || letter_char == '_';
-   };
-
-   inline bool is_special_char(char special_char)
-   {
-      return ((special_char >= '!' && special_char <= '~') && !is_numeric_char(special_char) && !is_letter_char(special_char));
-   };
-
-   inline bool is_newline_char(char new_line_char)
-   {
-      return new_line_char == '\n';
-   };
-
-   inline bool is_whitespace_char(char whitespace_char)
-   {
-      return whitespace_char == ' ' || whitespace_char == '\t' || whitespace_char == '\r';
-   }; //it was perhaps a mistake that \n is treated as a whitespace instead of a special symbol?
-
-   inline bool is_unicode(char unicode_char)
-   {
-      return static_cast<unsigned char>(unicode_char) >= 0b10000000;
-   };
-
-   inline bool is_valid_char(char unknown_char)
-   {
-      return (unknown_char >= ' ' && unknown_char <= '~') || is_whitespace_char(unknown_char) || is_unicode(unknown_char) || unknown_char == '\0';
-   };
- };
-
- enum class CharacterType : uint8_t {
-   Error,
-   Letter,
-   Unicode,
-   Numeric,
-   Whitespace,
-   EndOfFile,
-   Symbol, 
-   NewLine
- };
-
- static const auto character_map = [](){
-   using namespace TypeClassificator;
-   std::array<CharacterType,256> character_map;
-
-   for (int character_index = 0;character_index <= 255;character_index++)
-   {
-      unsigned char current_character = static_cast<unsigned char>(character_index);
-      if(!is_valid_char(current_character))
+      inline bool is_letter_char(char letter_char)
       {
-         character_map[current_character] = CharacterType::Error;
-         continue;
-      }
-      else if (is_numeric_char(current_character))
-      {
-         character_map[current_character] = CharacterType::Numeric;
-         continue;
-      }
-      else if (is_letter_char(current_character))
-      {
-         character_map[current_character] = CharacterType::Letter;      
-         continue;
-      }
-      else if (is_whitespace_char(current_character))
-      {
-         character_map[current_character] = CharacterType::Whitespace;
-         continue;
-      }
-      else if(is_newline_char(current_character))
-      {
-         character_map[current_character] = CharacterType::NewLine;
-         continue;
-      }
-      else if (is_unicode(current_character))
-      {
-         character_map[current_character] = CharacterType::Unicode;
-         continue;
+         return (letter_char >= 'A' && letter_char <= 'Z') || (letter_char >= 'a' && letter_char <= 'z') || letter_char == '_';
       };
-      character_map[current_character] = CharacterType::Symbol;
+
+      inline bool is_special_char(char special_char)
+      {
+         return ((special_char >= '!' && special_char <= '~') && !is_numeric_char(special_char) && !is_letter_char(special_char));
+      };
+
+      inline bool is_newline_char(char new_line_char)
+      {
+         return new_line_char == '\n';
+      };
+
+      inline bool is_whitespace_char(char whitespace_char)
+      {
+         return whitespace_char == ' ' || whitespace_char == '\t' || whitespace_char == '\r';
+      }; //it was perhaps a mistake that \n is treated as a whitespace instead of a special symbol?
+
+      inline bool is_unicode(char unicode_char)
+      {
+         return static_cast<unsigned char>(unicode_char) >= 0b10000000;
+      };
+
+      inline bool is_hex_code(char hex_code_char)
+      {
+        return is_numeric_char(hex_code_char) || (hex_code_char >= 'a' && hex_code_char <= 'f') || (hex_code_char >= 'A' && hex_code_char <= 'F');
+      };
+
+      inline bool is_bin_code(char bin_code_char)
+      {
+         return bin_code_char == '0' || bin_code_char == '1';
+      };
+
+      inline bool is_valid_char(char unknown_char)
+      {
+         return (unknown_char >= ' ' && unknown_char <= '~') || is_whitespace_char(unknown_char) || is_unicode(unknown_char) || unknown_char == '\0';
+      };
    };
 
-   character_map['\0'] = CharacterType::EndOfFile;
+   static const auto character_map = [](){
+      using namespace TypeClassificator;
+      std::array<CharacterType,256> character_map;
 
-   return character_map;
- }();
+      for (int character_index = 0;character_index <= 255;character_index++)
+      {
+         unsigned char current_character = static_cast<unsigned char>(character_index);
+         if(!is_valid_char(current_character))
+         {
+            character_map[current_character] = CharacterType::Error;
+            continue;
+         }
+         else if (is_numeric_char(current_character))
+         {
+            character_map[current_character] = CharacterType::Numeric;
+            continue;
+         }
+         else if (is_letter_char(current_character))
+         {
+            character_map[current_character] = CharacterType::Letter;      
+            continue;
+         }
+         else if (is_whitespace_char(current_character))
+         {
+            character_map[current_character] = CharacterType::Whitespace;
+            continue;
+         }
+         else if(is_newline_char(current_character))
+         {
+            character_map[current_character] = CharacterType::NewLine;
+            continue;
+         }  
+         else if (is_unicode(current_character))
+         {
+            character_map[current_character] = CharacterType::Unicode;
+            continue;
+         };
+         character_map[current_character] = CharacterType::Symbol;
+      };
 
- static const auto utf_len_map = [](){
-   std::array<uint8_t, 128> map;
+      character_map['\0'] = CharacterType::EndOfFile;
+
+      return character_map;
+   }();
+
+   inline void test_char_type(unsigned char index_char, CharacterType expected_type)
+   {
     
-   for (int i = 0; i < 128; ++i) {
-        int char_id = i + 0x80; 
-        
-        uint8_t length = 0;
+      CharacterType actual_type = character_map[index_char];
 
-        if (char_id >= 0xC2 && char_id <= 0xDF) {
-            length = 2;
-        } else if (char_id >= 0xE0 && char_id <= 0xEF) {
-            length = 3;
-        } else if (char_id >= 0xF0 && char_id <= 0xF4) {
-            length = 4;
-        }
-        
-        map[i] = length;
-    }
-    return map;
- }();
+      Assert(
+         actual_type == expected_type,
+         LexerError + 
+         "expected not to give an error"s +
+         "Character mapping mismatch for char '"s + std::string(1,static_cast<char>(index_char)) + 
+         "' (code: "s + std::to_string(index_char) + "). "s +
+         "Expected type "s + std::to_string((int)(expected_type)) + 
+         ", but map returneds " + std::to_string((int)(actual_type)) + 
+         LexerErrorEnd
+      );
+   };
 
- void consume_eof_token(LexerContext& lexer_context)
- {
-   Assert(
-      lexer_context.source.see_current() == '\0',
-      LexerError
-      "no EOF Token when expected one."
-      LexerErrorEnd
-   )
-   Assert(
-      lexer_context.source.can_consume_sentinel(),
-      LexerError
-      "trying to consume data outside of the buffer"
-      LexerErrorEnd
-   )
-   lexer_context.source.consume();
- };
-
- void consume_error_token(LexerContext& lexer_context)
- {
-   lexer_context.emit_error(ErrorCode::UnexpectedCharacter); //potentially I could add a message, but it can be derived from token of error type and displayed for the user
-   lexer_context.source.consume(); 
- };
-
- void consume_unicode_character(LexerContext& lexer_context)
- {
-   auto first = lexer_context.source.see_current();
-
-   Assert(
-      character_map[first] == CharacterType::Unicode && first >= 128,
-      LexerError
-      "expected unicode character but got something else instead"
-      LexerErrorEnd
-   )
-
-   int length_code = utf_len_map[(unsigned int)(first - 128)]; //in release this will (should) crash if the is_unicode(first) is not true
-   lexer_context.source.consume();
-
-   if (length_code == 0)
+   void consume_numbers_letters(LexerContext& lexer_context)
    {
-      lexer_context.emit_error(ErrorCode::InvalidByte);
-      return;
-   }
-
-   for (int index = 0;index < length_code-1;index++)
-   {
-      if (!lexer_context.source.can_consume())
-      {
-         lexer_context.emit_error(ErrorCode::TruncatedSequence);
-         return;
-      };
       auto current_char = lexer_context.source.see_current();
-      if ((current_char & 0xC0) != 0x80)
+      auto char_type = character_map[current_char]; 
+
+      while (char_type == CharacterType::Numeric || char_type == CharacterType::Letter)
       {
-         lexer_context.emit_error(ErrorCode::InvalidByte);
-         return;
-      }
-      lexer_context.source.consume();
+         lexer_context.source.consume();
+
+         current_char = lexer_context.source.see_current();
+         char_type = character_map[current_char];
+      };
    };
- };
 
- void consume_numbers_letters(LexerContext& lexer_context)
- {
-   auto current_char = lexer_context.source.see_current();
-   auto char_type = character_map[current_char]; 
-   while (char_type == CharacterType::Numeric || char_type == CharacterType::Letter)
+   void consume_identifier_token(LexerContext& lexer_context)
    {
-      lexer_context.source.consume();
+      auto current_char = lexer_context.source.see_current();
 
-      current_char = lexer_context.source.see_current();
-      char_type = character_map[current_char];
-   };
- };
+      test_char_type(current_char,CharacterType::Letter);
 
- void consume_identifier_token(LexerContext& lexer_context)
- {
-   auto current_char = lexer_context.source.see_current();
-
-   Assert(
-      character_map[current_char] == CharacterType::Letter,
-      LexerError
-      "expected letter char, got something else instead"
-      LexerErrorEnd
-   )
-
-   consume_numbers_letters(lexer_context);
- };
-
- void consume_numbers(LexerContext& lexer_context)
- {
-   auto current_char = lexer_context.source.see_current();
-   auto char_type = character_map[current_char]; 
-   while (char_type == CharacterType::Numeric)
-   {
-      lexer_context.source.consume();
-      current_char = lexer_context.source.see_current();
-      char_type = character_map[current_char];
-   };
- };
-
- void consume_numeric_token_non_default_base(LexerContext& lexer_context)
- {
-   auto current_char = lexer_context.source.see_current();
-   auto next_char = lexer_context.source.peek();
-   
-   auto char_type = character_map[next_char]; 
-   if (current_char == '0' && char_type == CharacterType::Letter)
-   {
-      lexer_context.source.consume(); // 0
-      lexer_context.source.consume(); // [number base code]
+      size_t offset = lexer_context.source.index;
       consume_numbers_letters(lexer_context);
-   };
- };
-
- void consume_numeric_token(LexerContext& lexer_context)
- {
-  auto current_char = lexer_context.source.see_current();
-
-  Assert(
-   character_map[current_char] == CharacterType::Numeric,
-   LexerError
-   "consume_numeric_token function called when current_char is not numeric"
-   LexerErrorEnd
-  )
-
-  if (current_char == '0')
-  {
-   consume_numeric_token_non_default_base(lexer_context); //consumes the code if it exists
-  };
-  consume_numbers(lexer_context); 
- };
-
- void consume_special_token(LexerContext& lexer_context)
- {
-   auto current_char = lexer_context.source.see_current();
-
-   Assert(
-      character_map[current_char] == CharacterType::Symbol,
-      LexerError
-      "expected special char"
-      LexerErrorEnd
-   )
+      size_t length = offset - lexer_context.source.index;
    
-   lexer_context.source.consume();
- };
+      std::string_view identifier_view = std::string_view(reinterpret_cast<char*>(lexer_context.source.get_source_buffer() + offset),length);
 
- void consume_whitespace_token(LexerContext& lexer_context)
- {
-   auto current_char = lexer_context.source.see_current();
-   auto char_type = character_map[current_char]; 
-   while (char_type == CharacterType::Whitespace)
-   {
-      lexer_context.source.consume();
-      current_char = lexer_context.source.see_current();
-      char_type = character_map[current_char];
+      lexer_context.record_identifier(identifier_view);
    };
- };
 
- void consume_new_line_token(LexerContext& lexer_context)
- {
-   auto current_char = lexer_context.source.see_current();
-
-   Assert(
-      character_map[current_char] == CharacterType::NewLine,
-      LexerError
-      "expected new line char"
-      LexerErrorEnd
-   )
-   
-   lexer_context.source.consume();
- };
-
- void consume_unicode_token(LexerContext& lexer_context)
- {
-   auto current_char = lexer_context.source.see_current();
-   auto char_type = character_map[current_char];
-   while (char_type == CharacterType::Unicode)
+   void consume_numbers(LexerContext& lexer_context)
    {
-      consume_unicode_character(lexer_context);
+      auto current_char = lexer_context.source.see_current();
+      auto char_type = character_map[current_char]; 
+      while (char_type == CharacterType::Numeric)
+      {
+         lexer_context.source.consume();
+         current_char = lexer_context.source.see_current();
+         char_type = character_map[current_char];
+      };
+   };
+
+   void consume_hex_numeric_token(LexerContext& lexer_context)
+   {
+      auto current_char = lexer_context.source.see_current();
+      auto next_char = lexer_context.source.peek();
+
+      Assert(current_char == '0' && next_char == 'x',
+         LexerError +
+         "expected hex code number, got something else"s + 
+         LexerErrorEnd
+      )
+
+      lexer_context.source.consume(2);
 
       current_char = lexer_context.source.see_current();
-      char_type = character_map[current_char];
-   };
- };
 
-  TokenType get_token_type(LexerContext& lexer_context)
-  {
-   auto current_char = static_cast<unsigned char>(lexer_context.source.see_current());
-   auto character_type = character_map[current_char];
+      size_t length = 0;
 
-   switch (character_type)
-   {
-      case CharacterType::Error:
-        return TokenType::Error;
-      case CharacterType::Unicode:
-         return TokenType::UnicodeSequence;
-      case CharacterType::Letter: 
-         return TokenType::Identifier;
-      case CharacterType::Numeric:
-         return TokenType::Numeric;
-      case CharacterType::Symbol:
-         return TokenType::SpecialChar;
-      case CharacterType::Whitespace:
-         return TokenType::Whitespace;
-      case CharacterType::NewLine:
-         return TokenType::NewLine;
-      case CharacterType::EndOfFile:
-         return TokenType::EndOfFile;
-      default:
-        return TokenType::Error;
+      while (TypeClassificator::is_hex_code(current_char))
+      {
+         lexer_context.source.consume();
+         current_char = lexer_context.source.see_current();
+         length++;
+      }
+
+      if (!TypeClassificator::is_neutral_char_type(character_map[current_char]))
+      {
+         return lexer_context.record_error(ErrorCode::MalformedNumber);
+      };
+
+      if (length == 0)
+      {
+         return lexer_context.record_error(ErrorCode::TruncatedNumberSequence);
+      };
+
+      return lexer_context.record_number(NumberBase::Hexdecimal,NumberType::Integer);
    };
 
-   return TokenType::Error;
- };
-
- Token Lexer::get_next_token()
- {
-   auto token_type = get_token_type(lexer_context);
-   lexer_context.ultimate_token_type = token_type;
-   lexer_context.original_token_type = token_type;
-   size_t start = lexer_context.source.index;
-
-   switch (token_type)
+   void consume_bin_numeric_token(LexerContext& lexer_context)
    {
-   case TokenType::Identifier:
-      consume_identifier_token(lexer_context);
-      break;
-   case TokenType::UnicodeSequence:
-      consume_unicode_token(lexer_context);
-      break;
-   case TokenType::Numeric:
-      consume_numeric_token(lexer_context);
-      break;
-   case TokenType::SpecialChar:
-      consume_special_token(lexer_context);
-      break;
-   case TokenType::Whitespace:
-      consume_whitespace_token(lexer_context);
-      break;
-   case TokenType::NewLine:
-      consume_new_line_token(lexer_context);
-      break;
-   case TokenType::EndOfFile:
-      consume_eof_token(lexer_context);
-      break;
-   case TokenType::Error:
-      consume_error_token(lexer_context);
-      break;
-   default:
-      consume_error_token(lexer_context);
-      break;
+      auto current_char = lexer_context.source.see_current();
+      auto next_char = lexer_context.source.peek();
+
+      Assert(current_char == '0' && next_char == 'b',
+         LexerError +
+         "expected hex code number, got something else"s + 
+         LexerErrorEnd
+      )
+
+      lexer_context.source.consume(2);
+
+      current_char = lexer_context.source.see_current();
+
+      size_t length = 0;
+
+      while (TypeClassificator::is_bin_code(current_char))
+      {
+         lexer_context.source.consume();
+         current_char = lexer_context.source.see_current();
+         length++;
+      }
+
+      if (!TypeClassificator::is_neutral_char_type(character_map[current_char]))
+      {
+         return lexer_context.record_error(ErrorCode::MalformedNumber);
+      };
+
+      if (length == 0)
+      {
+         return lexer_context.record_error(ErrorCode::TruncatedNumberSequence);
+      };
+
+      return lexer_context.record_number(NumberBase::Binary, NumberType::Integer);
+   }; 
+
+   void consume_decimal_numeric_token(LexerContext& lexer_context)
+   {
+      auto current_char = lexer_context.source.see_current();
+      test_char_type(current_char,CharacterType::Numeric);
+
+      consume_numbers(lexer_context);
+
+      auto middle_char = lexer_context.source.see_current();
+
+      if (middle_char == '.')
+      {
+         //most probably a float
+         lexer_context.source.consume();
+         consume_numbers(lexer_context);
+      } else if (TypeClassificator::is_neutral_char_type(character_map[middle_char])) [[likely]]
+      {
+         return lexer_context.record_number(NumberBase::Decimal,NumberType::Integer);
+      } else {
+         return lexer_context.record_error(ErrorCode::MalformedNumber);
+      };
+
+      //float path
+      if (TypeClassificator::is_neutral_char_type(character_map[middle_char])) [[likely]] 
+      {
+         return lexer_context.record_number(NumberBase::Decimal,NumberType::Float);
+      } else {
+         return lexer_context.record_error(ErrorCode::MalformedNumber);
+      }; 
    }
 
-   size_t end = lexer_context.source.index;
-   size_t length = end - start;
-   Token token;
-   token.token_type = lexer_context.ultimate_token_type;
-   token.offset = start;
-   token.length = length;
+   void consume_numeric_token(LexerContext& lexer_context)
+   {
+      auto current_char = lexer_context.source.see_current();
+      test_char_type(current_char,CharacterType::Numeric);
+      auto next_char = lexer_context.source.peek();
 
-   return token;
- };
+      if (current_char == '0' && next_char == 'x')
+      {
+         return consume_hex_numeric_token(lexer_context);
+      } else if(current_char == '0' && next_char == 'b')
+      {
+         return consume_bin_numeric_token(lexer_context);
+      } else [[likely]] {
+         return consume_decimal_numeric_token(lexer_context);
+      };
+   };
+
+   void consume_eof_token(LexerContext& lexer_context)
+   {
+      test_char_type(lexer_context.source.see_current(),CharacterType::EndOfFile);
+      lexer_context.source.consume();
+   };
+
+   void consume_error_token(LexerContext& lexer_context)
+   {
+      lexer_context.record_error(ErrorCode::UnexpectedCharacter);
+      lexer_context.source.consume(); 
+   };
+
+   void consume_symbol_token(LexerContext& lexer_context)
+   {
+      using namespace SymbolClassifier;
+      auto current_char = lexer_context.source.see_current();
+      auto char_type = character_map[current_char];
+
+      test_char_type(current_char,CharacterType::Symbol);
+
+      auto start = lexer_context.source.index;
+      auto start_ptr = reinterpret_cast<char*>(lexer_context.source.get_source_buffer() + start);
+
+      auto symbol_kind = SymbolKind::UNKNOWN;
+      
+      while (char_type == CharacterType::Symbol)
+      {
+         auto length = lexer_context.source.index - start + 1; //include here
+
+         const char* c_str_symbol = std::string(start_ptr,length).c_str();
+
+         auto next_symbol = get_symbol_from_cchar(c_str_symbol);
+      
+         if (next_symbol == SymbolKind::UNKNOWN)
+         {
+            return lexer_context.record_symbol(symbol_kind);
+         }
+
+         symbol_kind = next_symbol;
+         lexer_context.source.consume();
+      }
+
+      return lexer_context.record_symbol(symbol_kind);
+   };
+
+   void consume_whitespace_token(LexerContext& lexer_context)
+   {
+      auto current_char = lexer_context.source.see_current();
+
+      test_char_type(current_char,CharacterType::Whitespace);
+
+      auto char_type = character_map[current_char]; 
+      while (char_type == CharacterType::Whitespace)
+      {
+         lexer_context.source.consume();
+         current_char = lexer_context.source.see_current();
+         char_type = character_map[current_char];
+      };
+   };
+
+   void consume_inline_comment(LexerContext& lexer_context)
+   {
+      auto current_char = lexer_context.source.see_current();
+
+      test_char_type(current_char,CharacterType::Symbol);
+
+      auto next_char = lexer_context.source.peek();
+      Assert(current_char == '/' && next_char == '/',
+         LexerError + 
+         "expected inline comment char start, got somethign else"
+      );
+
+      auto inline_char = current_char;
+      while (character_map[inline_char] != CharacterType::NewLine)
+      {
+         lexer_context.source.consume();
+         inline_char = lexer_context.source.see_current();
+      };
+
+      if (character_map[inline_char] == CharacterType::EndOfFile)
+      {
+         return lexer_context.record_error(ErrorCode::UnclosedComment);
+      };
+
+      return;
+   };
+
+   void consume_block_comment(LexerContext& lexer_context)
+   {
+      auto current_char = lexer_context.source.see_current();
+
+      test_char_type(current_char,CharacterType::Symbol);
+
+      auto next_char = lexer_context.source.peek();
+      Assert(current_char == '/' && next_char == '*',
+         LexerError + 
+         "expected inline comment char start, got somethign else"
+      );
+      
+      lexer_context.source.consume(2);
+
+      auto inline_char = lexer_context.source.see_current();
+
+      while (character_map[inline_char] != CharacterType::EndOfFile)
+      {
+         auto next_char = lexer_context.source.peek();
+
+         if (inline_char == '*' && next_char == '/')
+         {
+            lexer_context.source.consume(2);
+            return;
+         };
+
+         lexer_context.source.consume();
+         inline_char = lexer_context.source.see_current();
+      };
+
+      return lexer_context.record_error(ErrorCode::UnclosedComment);
+   };
+
+   void consume_comment_token(LexerContext& lexer_context)
+   {
+      auto current_char = lexer_context.source.see_current();
+      test_char_type(current_char,CharacterType::Symbol);
+      auto next_char = lexer_context.source.peek();
+
+      Assert(current_char == '/' && (next_char == '/' || next_char == '*'), "expected comment symbol sequence, got something else")
+
+      bool is_multiline_comment = next_char == '*';
+
+      if (is_multiline_comment)
+      {
+         return consume_block_comment(lexer_context);
+      } else {
+         return consume_inline_comment(lexer_context);
+      }
+   };
+
+   void consume_new_line_token(LexerContext& lexer_context)
+   {
+      auto current_char = lexer_context.source.see_current();
+
+      test_char_type(current_char,CharacterType::NewLine);
+   
+      lexer_context.source.consume();
+   };
+
+   TokenType guess_token_type(LexerContext& lexer_context)
+   {
+      auto current_char = static_cast<unsigned char>(lexer_context.source.see_current());
+      auto character_type = character_map[current_char];
+
+      switch (character_type)
+      {
+         case CharacterType::Error:
+            return TokenKind<ErrorToken>::value;
+         case CharacterType::Letter: 
+            return TokenKind<IdentifierToken>::value;
+         case CharacterType::Numeric:
+            return TokenKind<NumericToken>::value;
+         case CharacterType::Symbol:
+         {
+            auto next_char = static_cast<unsigned char>(lexer_context.source.peek());
+            if (current_char == '/' && (next_char == '/' || next_char == '*')) [[unlikely]] 
+            {  
+               return TokenKind<CommentToken>::value;
+            };
+            return TokenKind<SymbolToken>::value;
+         }
+         case CharacterType::Whitespace:
+            return TokenKind<WhitespaceToken>::value;
+         case CharacterType::NewLine:
+            return TokenKind<NewLineToken>::value;
+         case CharacterType::EndOfFile:
+            return TokenKind<EOFToken>::value;
+         default:
+            return TokenKind<ErrorToken>::value;
+      };
+
+      return TokenKind<NoToken>::value;
+   };
+
+   TokenGeneric Lexer::get_next_token()
+   {
+      auto token_type = guess_token_type(lexer_context);
+      lexer_context.ultimate_token_type = token_type;
+      lexer_context.original_token_type = token_type;
+      size_t start = lexer_context.source.index;
+      /*
+      Check all functions if they fit for the task of a CLua Lexer (emit hint keywords, number types are hinted)
+      */
+      switch (token_type)
+      {
+      case TokenType::Identifier:
+         consume_identifier_token(lexer_context);//finished
+         break;
+      case TokenType::Numeric:
+         consume_numeric_token(lexer_context);//finished
+         break;
+      case TokenType::Symbol:
+         consume_symbol_token(lexer_context);//finished
+         break;
+      case TokenType::Whitespace:
+         consume_whitespace_token(lexer_context);//finished
+         break;
+      case TokenType::Comment:
+         consume_comment_token(lexer_context);//finished
+         break;
+      case TokenType::NewLine:
+         consume_new_line_token(lexer_context);//
+         break;
+      case TokenType::EndOfFile:
+         consume_eof_token(lexer_context);
+         break;
+      case TokenType::Error:
+         consume_error_token(lexer_context);
+         break;
+      case TokenType::None:
+         Assert(false,
+            LexerError +
+            "unexpected token type: got none"s +
+            LexerErrorEnd  
+         );
+      default:
+         Assert(false,
+            LexerError +
+            "unhandled token type: one at least has been forgotten"s +
+            LexerErrorEnd  
+         );
+         break;
+      }
+
+      size_t end = lexer_context.source.index;
+      size_t length = end - start;
+      TokenGeneric token;
+      token.token_type = lexer_context.ultimate_token_type;
+      token.offset = start;
+      token.length = length + 1;
+
+      return token;
+   };
 }
-
-#undef LexerError
-#undef LexerErrorEnd

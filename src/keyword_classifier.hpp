@@ -1,3 +1,5 @@
+#pragma once
+
 #include <cstring>
 
 #define KEYWORDS \
@@ -63,7 +65,22 @@ namespace KeywordClassifier {
         #undef Keyword
 
         else return Keyword::Unknown;
+    };
+
+    Keyword get_keyword_type(std::string_view keyword)
+    {
+        if (keyword.length() == 0) return Keyword::Unknown;
+
+        #define Keyword(KeywordValue, KeywordString) \
+            else if (keyword == KeywordString) { \
+                return Keyword::KeywordValue; \
+            }
+            KEYWORDS
+        #undef Keyword
+
+        else return Keyword::Unknown;
     }
+
 
     const char* keyword_to_string(Keyword kw)
     {
