@@ -77,7 +77,7 @@ namespace Util {
 
       inline bool is_valid_char(char unknown_char)
       {
-         return (unknown_char >= ' ' && unknown_char <= '~') || is_whitespace_char(unknown_char) || is_unicode(unknown_char) || unknown_char == '\0';
+         return (unknown_char >= ' ' && unknown_char <= '~') || is_whitespace_char(unknown_char) || is_unicode(unknown_char) || unknown_char == '\0' || is_newline_char(unknown_char);
       };
    };
 
@@ -378,7 +378,7 @@ namespace Util {
       );
 
       auto inline_char = current_char;
-      while (character_map[inline_char] != CharacterType::NewLine)
+      while (character_map[inline_char] != CharacterType::NewLine && character_map[inline_char] != CharacterType::EndOfFile)
       {
          lexer_context.source.consume();
          inline_char = lexer_context.source.see_current();
@@ -542,7 +542,7 @@ namespace Util {
       TokenGeneric token;
       token.token_type = lexer_context.ultimate_token_type;
       token.offset = start;
-      token.length = length + 1;
+      token.length = length;
 
       return token;
    };

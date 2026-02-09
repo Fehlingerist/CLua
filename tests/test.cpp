@@ -53,72 +53,94 @@ int main()
             Util::TokenType::Identifier,
             Util::TokenType::EndOfFile
         },
-        { 0, 15 },
-        { 15, 0 }
+        { 0, 14 },
+        { 14, 1 }
     };
 
-    Test<4> IDENTIFIER_WHITESPACE_IDENTIFIER {
-        "identifier whitespace identifier",
-        "foo bar",
-        {
-            Util::TokenType::Identifier,
-            Util::TokenType::Whitespace,
-            Util::TokenType::Identifier,
-            Util::TokenType::EndOfFile
-        },
-        { 0, 3, 4, 7 },
-        { 3, 1, 3, 0 }
-    };
+Test<4> IDENTIFIER_WHITESPACE_IDENTIFIER {
+    "identifier whitespace identifier",
+    "foo bar",
+    {
+        Util::TokenType::Identifier,
+        Util::TokenType::Whitespace,
+        Util::TokenType::Identifier,
+        Util::TokenType::EndOfFile
+    },
+    { 0, 3, 4, 7 },
+    { 3, 1, 3, 1 }
+};
 
-    Test<6> NUMBERS {
-        "decimal hex binary",
-        "12 0xFF 0b101",
-        {
-            Util::TokenType::Numeric,
-            Util::TokenType::Whitespace,
-            Util::TokenType::Numeric,
-            Util::TokenType::Whitespace,
-            Util::TokenType::Numeric,
-            Util::TokenType::EndOfFile
-        },
-        { 0, 2, 3, 7, 8, 13 },
-        { 2, 1, 4, 1, 5, 0 }
-    };
 
-    Test<2> MULTI_WHITESPACE {
-        "multi whitespace",
-        " \t  ",
-        {
-            Util::TokenType::Whitespace,
-            Util::TokenType::EndOfFile
-        },
-        { 0, 4 },
-        { 4, 0 }
-    };
+Test<6> NUMBERS {
+    "decimal hex binary",
+    "12 0xFF 0b101",
+    {
+        Util::TokenType::Numeric,
+        Util::TokenType::Whitespace,
+        Util::TokenType::Numeric,
+        Util::TokenType::Whitespace,
+        Util::TokenType::Numeric,
+        Util::TokenType::EndOfFile
+    },
+    { 0, 2, 3, 7, 8, 13 },
+    { 2, 1, 4, 1, 5, 1 }
+};
 
-    Test<2> INLINE_COMMENT {
-        "inline comment",
-        "// hello world\n",
-        {
-            Util::TokenType::Comment,
-            Util::TokenType::EndOfFile
-        },
-        { 0, 15 },
-        { 15, 0 }
-    };
 
-    Test<2> UNCLOSED_BLOCK_COMMENT {
-        "unclosed block comment",
-        "wdadwad122e312 /* dasd adwa",
-        {
-            Util::TokenType::Identifier,
-            Util::TokenType::Error
-        },
-        { 0, 15 },
-        { 15, 0 },
-        true,
-        Util::ErrorCode::UnclosedComment
-    };
+Test<2> MULTI_WHITESPACE {
+    "multi whitespace",
+    " \t  ",
+    {
+        Util::TokenType::Whitespace,
+        Util::TokenType::EndOfFile
+    },
+    { 0, 4 },
+    { 4, 1 }
+};
+
+Test<3> INLINE_COMMENT {
+    "inline comment",
+    "// hello world\n",
+    {
+        Util::TokenType::Comment,
+        Util::TokenType::NewLine,
+        Util::TokenType::EndOfFile,
+    },
+    { 0, 14, 15 },
+    { 14, 1, 1 }
+};
+
+Test<4> UNCLOSED_BLOCK_COMMENT {
+    "unclosed block comment",
+    "wdadwad122e312 /* dasd adwa",
+    {
+        Util::TokenType::Identifier,
+        Util::TokenType::Whitespace,
+        Util::TokenType::Error,
+        Util::TokenType::EndOfFile
+    },
+    { 0, 14, 15, 27 },
+    { 14, 1, 12, 1 },
+    true,
+    Util::ErrorCode::UnclosedComment
+};
+
+
+Test<4> UNICODE_CHARACTERS_IN_IDENTIFIER {
+    "unicode characters test",
+    "asdxxź",
+    {
+        Util::TokenType::Identifier,
+        Util::TokenType::Error,
+        Util::TokenType::Error,
+        Util::TokenType::EndOfFile
+    },
+    { 0, 5, 6, 7},
+    { 5, 1, 1, 1},
+    true,
+    Util::ErrorCode::UnexpectedCharacter
+};
+
 
     run_test(IDENTIFIER_ONLY);
     run_test(IDENTIFIER_WHITESPACE_IDENTIFIER);
@@ -126,6 +148,7 @@ int main()
     run_test(MULTI_WHITESPACE);
     run_test(INLINE_COMMENT);
     run_test(UNCLOSED_BLOCK_COMMENT);
+    run_test(UNICODE_CHARACTERS_IN_IDENTIFIER);
 
     std::cout << "\nAll lexer tests passed.\n";
     return 0;
