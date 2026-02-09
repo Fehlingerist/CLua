@@ -415,9 +415,9 @@ namespace Util {
             return get_next_token();
         };
 
-        Error get_last_error()
+        const Error get_last_error()
         {
-            return lexer_context.errors.front();
+            return lexer_context.errors.back();
         };
     };
 }   

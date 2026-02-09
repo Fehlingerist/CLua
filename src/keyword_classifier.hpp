@@ -14,33 +14,34 @@
     Keyword(Break, "break") \
     Keyword(Continue, "continue") \
     Keyword(Return, "return") \
-    Keyword(Const, "Const") \
-    Keyword(Static, "Static") \
-    Keyword(Template, "Template") \
-    Keyword(Class, "Class") \
+    Keyword(Const, "const") \
+    Keyword(Static, "static") \
+    Keyword(Template, "template") \
+    Keyword(Class, "class") \
     Keyword(Struct, "Struct") \
-    Keyword(Enum, "Enum") \
-    Keyword(Union, "Union") \
+    Keyword(Enum, "enum") \
+    Keyword(Union, "union") \
     Keyword(Public, "public") \
     Keyword(Private, "private") \
     Keyword(Protected, "protected") \
-    Keyword(Virtual, "Virtual") \
-    Keyword(Inline, "Inline") \
-    Keyword(Using, "Using") \
-    Keyword(Namespace, "Namespace") \
-    Keyword(Volatile, "Volatile") \
-    Keyword(Mutable, "Mutable") \
-    Keyword(Extern, "Extern") \
-    Keyword(Friend, "Friend") \
-    Keyword(New, "New") \
-    Keyword(Delete, "Delete") \
+    Keyword(Virtual, "virtual") \
+    Keyword(Inline, "inline") \
+    Keyword(Using, "using") \
+    Keyword(Namespace, "namespace") \
+    Keyword(Volatile, "volatile") \
+    Keyword(Mutable, "mutable") \
+    Keyword(Extern, "extern") \
+    Keyword(Friend, "friend") \
+    Keyword(New, "new") \
+    Keyword(Delete, "delete") \
     Keyword(True, "true") \
     Keyword(False, "false") \
     Keyword(Nil, "nullptr") \
     Keyword(Typedef, "typedef") \
     Keyword(Auto, "Auto") \
     Keyword(Decltype, "decltype") \
-    Keyword(Constexpr, "Constexpr") \
+    Keyword(Constexpr, "constexpr") \
+    Keyword(Consteval, "consteval") \
     Keyword(StaticAssert, "static_assert") \
     Keyword(Sizeof, "sizeof")
 
