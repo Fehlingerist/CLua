@@ -309,17 +309,16 @@ Test<2> TRAILING_DOT_FLOAT {
     { 2, 1 }
 };
 
-Test<4> DOUBLE_DOT {
+Test<3> DOUBLE_DOT {
     "double dot",
     "1..2",
     {
-        Util::TokenType::Numeric,
-        Util::TokenType::Symbol,
-        Util::TokenType::Numeric,
-        Util::TokenType::EndOfFile
+        Util::TokenType::Numeric, //1.
+        Util::TokenType::Numeric, //.2
+        Util::TokenType::EndOfFile 
     },
-    { 0, 1, 3, 4 },
-    { 1, 2, 1, 1 }
+    { 0, 2, 4 },
+    { 2, 2, 1 }
 };
 
 Test<2> LEADING_ZERO_NUMBER {

@@ -259,19 +259,23 @@ namespace Util {
 
       if (current_char == '.')
       {
+         //consume if .[numbers] case 
          lexer_context.source.consume();
          current_char = lexer_context.source.see_current();
-      };
-
-      if (current_char == '.')
-      {
-         return lexer_context.record_error(ErrorCode::MalformedNumber);
+      
+         Assert(
+            character_map[current_char] != CharacterType::Numeric,
+            LexerError + 
+            "unexpected behaviour: token guesser misslcassified token type"s + 
+            LexerErrorEnd
+         )
       };
 
       consume_numbers(lexer_context);
 
       if(first_char == '.')
       {
+         //.[numbers]
          return lexer_context.record_number(NumberBase::Decimal,NumberType::Float);
       };
 
@@ -281,11 +285,14 @@ namespace Util {
 
       if (middle_char == '.')
       {
-         //most probably a float
+         //both cases:
+         //[numbers](consume_index).[numbers]
+         //[numbers](consume_index).
          lexer_context.source.consume();
          consume_numbers(lexer_context);
       } else if (TypeClassificator::is_neutral_char_type(middle_char_type) || is_symbol) [[likely]]
       {
+         //[numbers]
          return lexer_context.record_number(NumberBase::Decimal,NumberType::Integer);
       } 
       else {
@@ -296,13 +303,10 @@ namespace Util {
       auto end_char_type = character_map[end_char];
       auto is_end_char_symbol = end_char_type == CharacterType::Symbol;
 
-      //float path
-      if (end_char == '.')
+      if (TypeClassificator::is_neutral_char_type(end_char_type) || is_end_char_symbol) [[likely]] 
       {
-         return lexer_context.record_error(ErrorCode::MalformedNumber);
-      }
-      else if (TypeClassificator::is_neutral_char_type(end_char_type) || is_end_char_symbol) [[likely]] 
-      {
+         //[numbers].[numbers]
+         //[numbers].
          return lexer_context.record_number(NumberBase::Decimal,NumberType::Float);
       } else {
          return lexer_context.record_error(ErrorCode::MalformedNumber);
