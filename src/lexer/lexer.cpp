@@ -29,6 +29,17 @@ namespace Util {
          }
       };
 
+      inline bool is_number_compapitable_char_type(CharacterType char_type)
+      {
+         switch (char_type)
+         {
+         case CharacterType::Whitespace: case CharacterType::NewLine: case CharacterType::EndOfFile: case CharacterType::Symbol:
+            return true;
+         default:
+            return false;
+         }
+      };
+
       inline bool is_numeric_char(char numeric_char)
       {
          return numeric_char >= '0' && numeric_char <= '9';
@@ -193,6 +204,11 @@ namespace Util {
 
       current_char = lexer_context.source.see_current();
 
+      if (!TypeClassificator::is_hex_code(current_char))
+      {
+         return lexer_context.record_error(ErrorCode::MalformedNumber);
+      };
+
       size_t length = 0;
 
       while (TypeClassificator::is_hex_code(current_char))
@@ -202,7 +218,7 @@ namespace Util {
          length++;
       }
 
-      if (!TypeClassificator::is_neutral_char_type(character_map[current_char]))
+      if (!TypeClassificator::is_number_compapitable_char_type(character_map[current_char]))
       {
          return lexer_context.record_error(ErrorCode::MalformedNumber);
       };
@@ -230,6 +246,11 @@ namespace Util {
 
       current_char = lexer_context.source.see_current();
 
+      if(!TypeClassificator::is_bin_code(current_char))
+      {
+         return lexer_context.record_error(ErrorCode::MalformedNumber);
+      };
+
       size_t length = 0;
 
       while (TypeClassificator::is_bin_code(current_char))
@@ -239,7 +260,7 @@ namespace Util {
          length++;
       }
 
-      if (!TypeClassificator::is_neutral_char_type(character_map[current_char]))
+      if (!TypeClassificator::is_number_compapitable_char_type(character_map[current_char]))
       {
          return lexer_context.record_error(ErrorCode::MalformedNumber);
       };
@@ -264,7 +285,7 @@ namespace Util {
          current_char = lexer_context.source.see_current();
       
          Assert(
-            character_map[current_char] != CharacterType::Numeric,
+            character_map[current_char] == CharacterType::Numeric,
             LexerError + 
             "unexpected behaviour: token guesser misslcassified token type"s + 
             LexerErrorEnd
@@ -281,7 +302,6 @@ namespace Util {
 
       auto middle_char = lexer_context.source.see_current();
       auto middle_char_type = character_map[middle_char];
-      auto is_symbol = middle_char_type == CharacterType::Symbol;
 
       if (middle_char == '.')
       {
@@ -290,7 +310,7 @@ namespace Util {
          //[numbers](consume_index).
          lexer_context.source.consume();
          consume_numbers(lexer_context);
-      } else if (TypeClassificator::is_neutral_char_type(middle_char_type) || is_symbol) [[likely]]
+      } else if (TypeClassificator::is_number_compapitable_char_type(middle_char_type)) [[likely]]
       {
          //[numbers]
          return lexer_context.record_number(NumberBase::Decimal,NumberType::Integer);
@@ -301,9 +321,8 @@ namespace Util {
 
       auto end_char = lexer_context.source.see_current();
       auto end_char_type = character_map[end_char];
-      auto is_end_char_symbol = end_char_type == CharacterType::Symbol;
 
-      if (TypeClassificator::is_neutral_char_type(end_char_type) || is_end_char_symbol) [[likely]] 
+      if (TypeClassificator::is_number_compapitable_char_type(end_char_type)) [[likely]] 
       {
          //[numbers].[numbers]
          //[numbers].
