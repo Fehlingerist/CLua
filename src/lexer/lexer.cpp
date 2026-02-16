@@ -531,30 +531,42 @@ namespace Util {
 
       lexer_context.source.consume(); 
       auto current_char = lexer_context.source.see_current();
-      
-      if (current_char == '\'') {
-        return lexer_context.record_error(ErrorCode::InvalidCharCode);
+
+      size_t counter = 0;
+      while (current_char != '\'')
+      {
+         if (current_char == '\0')
+         {
+            return lexer_context.record_error(ErrorCode::UnclosedChar);
+         };
+
+         if (current_char == '\\') {
+            lexer_context.source.consume(); 
+
+            char next = lexer_context.source.see_current();
+            if (next == '\0')
+            {
+               return lexer_context.record_error(ErrorCode::UnclosedChar);
+            }
+         }  
+         lexer_context.source.consume(); 
+
+         counter++;
+         current_char = lexer_context.source.see_current();
       }
 
-      if (current_char == '\\') {
-        lexer_context.source.consume(); 
-        auto escaped = lexer_context.source.see_current();
-        
-        if (escaped == 'n' || escaped == 't' || escaped == 'r' || 
-            escaped == '0' || escaped == '\\' || escaped == '\'') {
-            lexer_context.source.consume();
-        } else {
-            return lexer_context.record_error(ErrorCode::InvalidCharCode);
-        }
-      } else {
-        lexer_context.source.consume(); 
-      }
+      lexer_context.source.consume(); 
 
-      if (lexer_context.source.see_current() != '\'') {
-        return lexer_context.record_error(ErrorCode::UnclosedChar);
-      }
+      if (counter == 0)
+      {
+         return lexer_context.record_error(ErrorCode::InvalidCharCode);
+      } else if (counter == 1){
+         return;
+      } else if(counter > 1)
+      {
+         return lexer_context.record_error(ErrorCode::TooLongChar);
+      };
       
-      lexer_context.source.consume(); //closing '
       return;
    }
    

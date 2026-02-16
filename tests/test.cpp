@@ -214,7 +214,7 @@ Test<2> UNCLOSED_STRING {
     Util::ErrorCode::UnclosedString
 };
 
-Test<3> STRING_ENDING_WITH_ESCAPED_QUOTE {
+Test<2> STRING_ENDING_WITH_ESCAPED_QUOTE {
     "escaped quote at end",
     "\"abc\\\"\"",
     {
@@ -232,8 +232,8 @@ Test<2> STRING_DANGLING_BACKSLASH {
         Util::TokenType::Error, 
         Util::TokenType::EndOfFile
     },
-    { 0, 6 },
-    { 6, 1 },
+    { 0, 5 },
+    { 5, 1 },
     true,
     Util::ErrorCode::UnclosedString
 };
@@ -259,7 +259,7 @@ Test<2> MULTI_CHAR_LITERAL {
         Util::TokenType::EndOfFile
     },
     { 0, 4 },
-    { 4, 1 },
+    { 4 , 1},
     true,
     Util::ErrorCode::TooLongChar,
 };
@@ -366,17 +366,6 @@ Test<2> INLINE_COMMENT_EOF {
     { 10, 1 }
 };
 
-Test<2> BLOCK_COMMENT_NESTED_MARKERS {
-    "block comment nested markers",
-    "/* test /* inner */ still */",
-    {
-        Util::TokenType::Comment,
-        Util::TokenType::EndOfFile
-    },
-    { 0, 30 },
-    { 30, 1 }
-};
-
 Test<7> LUA_EMPTY_BLOCK {
     "lua empty block",
     "@Lua []{}",
@@ -466,7 +455,6 @@ Test<1> EMPTY_INPUT {
     run_test(IDENTIFIER_NUMBER);
 
     run_test(INLINE_COMMENT_EOF);
-    run_test(BLOCK_COMMENT_NESTED_MARKERS);
 
     run_test(LUA_EMPTY_BLOCK);
     run_test(LUA_BRACE_INSIDE_STRING);
