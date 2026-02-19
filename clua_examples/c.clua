@@ -1,0 +1,67 @@
+@LUA [] {
+    local Math  = require(Workspace.MathModule)
+    local Gfx   = require(Workspace.GraphicsModule)
+}
+
+buffer vec3 PlayerPos;
+buffer vec3 PlayerVel;
+
+float DeltaTime = 0.016;
+int   Score     = 0;
+int   Frame     = 0;
+
+extern float system_tick();
+
+virtual void Integrate(vec3& pos, vec3& vel, float dt) {
+    pos += vel * dt;
+}
+
+int main() {
+
+    Frame += 1;
+
+    // --- 1. Reference capture block ---
+    @LUA [&Score, &PlayerPos] {
+        Score += 5
+        PlayerPos += Vector3.new(0, 0.5, 0)
+    }
+
+    // --- 2. Copy capture with export ---
+    int LocalCounter = 0;
+
+    @LUA [Frame] {
+        Frame += 10
+    } export Frame as LocalCounter;
+
+    // --- 3. Mixed capture + explicit export mapping ---
+    float SpeedMagnitude = 0.0;
+
+    @LUA [&PlayerVel, PlayerPos] {
+        PlayerVel += Vector3.new(0, -9.8, 0)
+
+        local speed = PlayerVel.Magnitude //doesn't really need to be exported, because in this language Vector3 is a native type
+    } export speed as SpeedMagnitude;//must be a native type, the type is presumed to be number as float based on the user's promise
+
+    // --- 4. Conditional execution ---
+    if (Score > 20) {
+
+        @LUA [&Score] {
+            Score = 0
+            print("Score reset")
+        }
+
+    }
+
+    // --- 5. CLua physics step ---
+    DeltaTime = system_tick() * 0.001;
+    Integrate(PlayerPos, PlayerVel, DeltaTime);
+
+    printf("Frame:", Frame);
+    printf("Score:", Score);
+    printf("LocalCounter:", LocalCounter);
+    printf("SpeedMagnitude:", SpeedMagnitude);
+    printf("PlayerPos:", PlayerPos);
+    printf("PlayerVel:", PlayerVel);
+
+    return 0;
+}

@@ -42,5 +42,10 @@ int main() {
     printf("playerPos:", playerPos);
     printf("playerVel:", playerVel);
 
+    if (true)   
+    {
+        //trvth
+    };
+
     return static_cast<int>(0);
 }
