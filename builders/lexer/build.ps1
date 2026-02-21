@@ -6,14 +6,21 @@ param (
 )
 
 # --- Configuration ---
+
+# --- User-configurable variables ---
 $Compiler = "g++"
 $Std      = "-std=c++26"
-$Includes = @("-I'C:/dev/C_C++/StdToolset/'", "-I'src'")
-$Source   = "src/bundler.cpp"
-$OutDir   = "build"
+$RootDir  = Resolve-Path "$PSScriptRoot/../.." | ForEach-Object { $_.Path }
+$StdToolsetDir = "$RootDir/StdToolset"
+$SrcDir   = "$RootDir/src"
+$Source   = "$PSScriptRoot/bundler.cpp"
+$OutDir   = "$RootDir/build"
+$Includes = @("-I$StdToolsetDir", "-I$SrcDir")
+
 
 # Ensure the build directory exists
 if (!(Test-Path $OutDir)) { New-Item -ItemType Directory -Path $OutDir | Out-Null }
+
 
 # --- Mode Logic ---
 if ($Mode -eq "debug") {
@@ -25,8 +32,11 @@ if ($Mode -eq "debug") {
     $Flags   = "-O3 -DNDEBUG" # -O3 for max optimization
     $Output  = "$OutDir/lexer.exe"
 }
-$FullCommand = "$Compiler $Std $Source $($Includes -join ' ') $Flags -o $Output"
+$FullCommand = "$Compiler $Std `"$Source`" $($Includes -join ' ') $Flags -o `"$Output`""
 
+
+# --- Build Command ---
+Write-Host "Running: $FullCommand"
 Invoke-Expression $FullCommand
 
 if ($LASTEXITCODE -eq 0) {

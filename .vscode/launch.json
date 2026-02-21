@@ -5,11 +5,11 @@
     "version": "0.2.0",
     "configurations": [
          {
-            "name": "Debug Tester",
+            "name": "Debug Lexer Tester",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/test/test.exe",
-            "args": ["${workspaceFolder}/tests/bundler.cpp"],
+            "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
@@ -30,7 +30,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/lexer_debug.exe",
-            "args": ["${workspaceFolder}/src/bundler.cpp"],
+            "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
