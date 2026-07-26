@@ -1,105 +1,38 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MatchCharToken = exports.MatchStringToken = exports.MatchSymbolToken = exports.MatchNumericToken = exports.MatchIdentifierToken = exports.OptionalPattern = exports.ChoicePattern = exports.Pattern = exports.BasePattern = void 0;
-class BasePattern {
-    constructor() {
-        this.class_name = this.constructor.name;
-    }
-}
-exports.BasePattern = BasePattern;
-class Pattern extends BasePattern {
-    constructor() {
-        super();
-        this.pattern_list = new Array();
-    }
-    ;
-    insert_pattern(pattern) {
-        this.pattern_list.push(pattern);
-    }
-    ;
-    get_yield_type() {
-        return "NodeHandle";
-    }
-}
+exports.Pattern = void 0;
+const Pattern = __importStar(require("#common/patterns/index"));
 exports.Pattern = Pattern;
-;
-class ChoicePattern extends Pattern {
-    constructor() {
-        super();
-    }
-    get_yield_type() {
-        if (this.pattern_list.length <= 0) {
-            return "None";
-        }
-        const first_type = this.pattern_list[0].get_yield_type();
-        for (const pattern of this.pattern_list) {
-            if (pattern.get_yield_type() !== first_type) {
-                throw new Error(`[MetaCompiler Type Error] ChoicePattern mismatch. ` +
-                    `Alternative paths must yield the same type. Expected: ${first_type}, got: ${pattern.get_yield_type()}`);
-            }
-        }
-        return first_type;
-    }
-}
-exports.ChoicePattern = ChoicePattern;
-class OptionalPattern extends Pattern {
-    constructor() {
-        super();
-    }
-    get_yield_type() {
-        if (this.pattern_list.length === 0) {
-            return "None";
-        }
-        if (this.pattern_list.length === 1) {
-            return this.pattern_list[0].get_yield_type();
-        }
-        return "NodeHandle";
-    }
-}
-exports.OptionalPattern = OptionalPattern;
-class MatchIdentifierToken extends BasePattern {
-    constructor() {
-        super();
-    }
-    get_yield_type() {
-        return "NodeHandle";
-    }
-}
-exports.MatchIdentifierToken = MatchIdentifierToken;
-class MatchNumericToken extends BasePattern {
-    constructor() {
-        super();
-    }
-    get_yield_type() {
-        return "NumericToken";
-    }
-}
-exports.MatchNumericToken = MatchNumericToken;
-class MatchSymbolToken extends BasePattern {
-    constructor(expected_symbol) {
-        super();
-        this.expected_symbol = expected_symbol;
-    }
-    get_yield_type() {
-        return "SymbolToken";
-    }
-}
-exports.MatchSymbolToken = MatchSymbolToken;
-class MatchStringToken extends BasePattern {
-    constructor() {
-        super();
-    }
-    get_yield_type() {
-        return "StringToken";
-    }
-}
-exports.MatchStringToken = MatchStringToken;
-class MatchCharToken extends BasePattern {
-    constructor() {
-        super();
-    }
-    get_yield_type() {
-        return "CharToken";
-    }
-}
-exports.MatchCharToken = MatchCharToken;

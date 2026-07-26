@@ -1,265 +1,209 @@
-import { Pattern } from "#common/pattern";
-import { NodeDefinition } from "../ast/node";
+import {
+   PatternYieldType,
+   PrimitivePattern,
+   Pattern,
+   ChoicePattern,
+   InvertedPattern,
+   QuantityPattern,
+   CharRange,
+   CaptureLengthPattern,
+   MatchSymbolPattern} from "#common/patterns/index";
+import * as Nodes from "#common/ast/node";
+import { Conversion } from "../patterns";
 
-export namespace IR {
-    export class IRBase {
-        children: Array<IRBase>;
-        parent: IRBase | undefined;
-        
-        private remove_child(child: IRBase)
-        {
-            let child_index = this.children.findIndex((other_child: IRBase) => other_child == child);
-            
-            if (child_index === -1)
-            {
-                throw new Error(`Trying to remove child which doesn't exist in the parent`);
-            };
-            
-            child.parent = undefined;
+export namespace LowIR {
+   /* 
+   IR patterns in the example parser
+   */
+};
 
-            let top = this.children.pop();
+export namespace HighIR {
+   /* 
+    CaptureLengthPattern, MatchContextLengthPattern, //extension of quantity pattern
+    --Length capture context
+    
+    PatternSwitchParser,
 
-            if (top === undefined)
-            {
-                return;
-            };
+    NodeConversion, SpanConversion, NodeChainConversion, //converted into properties 
+    
+    ChoicePattern, InvertedPattern, Pattern, QuantityPattern,
+    CharRange, MatchSymbolPattern
+   */
 
-            this.children[child_index] = top;
-        };
+   abstract class HIRBase {
+      convert_to: PatternYieldType
+      attached_pattern: PrimitivePattern
 
-        remove()
-        {
-            if (this.parent === undefined)
-            {
-                return;
-            };
-            this.parent.remove_child(this);
-        };
+      constructor(pattern: PrimitivePattern)
+      {
+         this.attached_pattern = pattern;
+         this.convert_to = PatternYieldType.None;//code for inferring type from pattern
+      };
 
-        insert_child(child: IRBase): this
-        {
-            this.children.push(child);
-            return this;
-        };  
+      abstract convert_emit_type(pattern_emit_type: PatternYieldType): void;
 
-        set_parent(parent: IRBase): this
-        {
-            this.parent = parent;
-            parent.insert_child(this);
-            return this;
-        };
+      get_pattern_type()
+      {
+         if (this.convert_to != PatternYieldType.None)
+         {
+            return this.convert_to;
+         };
 
-        constructor()
-        {
-            this.children = new Array<IRBase>();
-            this.parent = undefined;
-        };
-    };
+         return this.attached_pattern.get_yield_type();
+      };
+   };
 
-    export class IRDefinitionStart extends IRBase
-    {
-        language_name: string;
-        constructor()
-        {
-            super();
-            this.language_name = ""
-        };
+   export class HIRSequence extends HIRBase {
+      symbol_token: number = -1;
 
-        /* 
-        namespace [language_name] {
-            ...
-        }
-        */
-    };
+      constructor(pattern: PrimitivePattern)
+      {
+         super(pattern);
+      };    
 
-    export class IdentifierToken {
-        constructor(public debug_name?: string) {}
-    }
+      convert_emit_type(pattern_emit_type: PatternYieldType): void {
+         if (
+            pattern_emit_type != PatternYieldType.Symbol && 
+            pattern_emit_type != PatternYieldType.TokenSpanNode &&
+            pattern_emit_type != PatternYieldType.None
+         ){
+            throw new Error(
+               "The only valid emittable type is Symbol or TokenSpanNode for sequence pattern"
+            );
+         };
+         this.convert_to = pattern_emit_type;
+      };
 
-    export class IRParseFunctionDefinition extends IRBase {
-        constructor(public function_identifier: IdentifierToken)
-        {
-            super();
-        };
+      set_symbol_token(new_symbol_token: number)
+      {
+         this.symbol_token = new_symbol_token;
+      };
+   }
+   export class HIRChoice extends HIRBase {
+      constructor(pattern: PrimitivePattern)
+      {
+         super(pattern);
+      };
 
-        /*
-            NodeHandle [function_identifier](ParserContext& context)
-            {
-            ...
-            }; 
-        */
-    };
+      //Rules of HIRChoice
+      //Can be converted to anything but all patterns must be convertable
+      convert_emit_type(pattern_emit_type: PatternYieldType): void {
+         
+      };
+   }
+   export class HIRInverted extends HIRBase {
+      constructor(pattern: PrimitivePattern)
+      {
+         super(pattern);
+      };
+      
+      convert_emit_type(pattern_emit_type: PatternYieldType): void {
+      
+      }
+   }
+   export class HIRQuantity extends HIRBase {
+      constructor(pattern: PrimitivePattern)
+      {
+         super(pattern);
+      };
+      
+      convert_emit_type(pattern_emit_type: PatternYieldType): void {
+      
+      }
+   }
+   export class HIRCharRange extends HIRBase {
+      constructor(pattern: PrimitivePattern)
+      {
+         super(pattern);
+      };
+      
+      convert_emit_type(pattern_emit_type: PatternYieldType): void {
+      
+      }
+   }
+   export class HIRMatchSymbol extends HIRBase {
+      constructor(pattern: PrimitivePattern)
+      {
+         super(pattern);
+      };
+      
+      convert_emit_type(pattern_emit_type: PatternYieldType): void {
+      
+      }
+   }
+   export class HIRCaptureLength extends HIRBase {
+      constructor(pattern: PrimitivePattern)
+      {
+         super(pattern);
+      };
+      
+      convert_emit_type(pattern_emit_type: PatternYieldType): void {
+      
+      }
+   }
 
-    /**
-     * Records a cursor checkpoint for potential backtracking.
-     * Maps to: auto [identifier_token] = context.record_cursor();
-     */
-    export class NewBacktrackState extends IRBase {
-        constructor(public identifier_token: IdentifierToken) {
-            super();
-        }
-        /* 
-        auto [identifier_token] = context.record_cursor();
-        */
-    }
+   export function convert_pattern_to_hir(pattern: PrimitivePattern): HIRBase {
+      const is_converter = pattern instanceof Conversion;
+      let convert_type: PatternYieldType = PatternYieldType.None;
 
-    /**
-     * Restores the cursor position if a pattern fails.
-     * Maps to: context.set_cursor([identifier_token]);
-     */
-    export class RestoreBacktrackState extends IRBase {
-        constructor(public identifier_token: IdentifierToken) {
-            super();
-        }
-        /* 
-        context.set_cursor([identifier_token]);
-        */
-    }
+      if (is_converter) {
+            let candidate = pattern.get_children()[0]; // conversion implicitly holds only 1 pattern member
 
-    /**
-     * Performs a direct sequence check on the source text.
-     * Maps to: bool [result_token] = context.match_sequence("...");
-     */
-    export class MatchSequence extends IRBase {
-        constructor(
-            public sequence_literal: string, 
-            public result_token: IdentifierToken
-        ) {
-            super();
-        }
-        /* 
-            auto [result_token] = context.match_sequence([sequence_literal]);
-        */
-    }
+            if (!candidate) {
+               throw new Error("Invalid conversion");
+            }
 
-    /**
-     * Performs a lookahead check on a character range.
-     * Maps to: auto [result_token] = context.see_current() == ' ';
-     */
-    export class IsCharRange extends IRBase {
-        constructor(
-            public char_range: Pattern.CharRange,
-            public result_token: IdentifierToken,
-            public char_token: IdentifierToken
-        ) {
-            super();
-        }
-        /* 
-        //presuming that char_range is valid (no character ranges overlap)
-        auto is_in_range = #for range,is_last_index in char_range.ranges 
-        #emit range.min <= char_token && range.max >= char_token
-        #emitif (!is_last_index), ||
-        #end
-        */
-    }
+            convert_type = (pattern as Conversion).get_yield_type();
+            pattern = candidate;
+      }
 
-    /**
-     * Reserves memory in the compiler context pool for an AST Node.
-     */
-    export class NewReserveNode extends IRBase {
-        constructor(
-            public ast_node_type: NodeDefinition, 
-            public handle_token: IdentifierToken, 
-            public ref_token: IdentifierToken
-        ) {
-            super();
-        }
-        /* 
-            auto [handle_token] = context.reserve_node<[get_full_name_path(ast_node_type)]>();
-            auto& [ref_token] = context.get_node_reference<[get_full_name_path(ast_node_type)]>([handle_token]);
-        */
-    }
+      let hir_node: HIRBase;
 
-    /**
-     * Finalizes structural data and properties for an allocated node.
-     * Maps to: [handle_token].node_type = ...;
-     */
-    export class InitNode extends IRBase {
-        constructor(
-            public handle_token: IdentifierToken, 
-            public node_type_enum: string, 
-            public start_index_token: IdentifierToken
-        ) {
-            super();
-        }
-        /* 
+      switch (true) {
+            case pattern instanceof Pattern: {
+               hir_node = new HIRSequence(pattern);
+               break;
+            }
+            case pattern instanceof ChoicePattern: {
+               hir_node = new HIRChoice(pattern);
+               break;
+            }
+            case pattern instanceof InvertedPattern: {
+               hir_node = new HIRInverted(pattern);
+               break;
+            }
+            case pattern instanceof QuantityPattern: {
+               hir_node = new HIRQuantity(pattern);
+               break;
+            }
+            case pattern instanceof CharRange: {
+               hir_node = new HIRCharRange(pattern);
+               break;
+            }
+            case pattern instanceof MatchSymbolPattern: {
+               hir_node = new HIRMatchSymbol(pattern);
+               break;
+            }
+            case pattern instanceof CaptureLengthPattern: {
+               hir_node = new HIRCaptureLength(pattern);
+               break;
+            }
+            default: {
+               throw new Error(
+                  `Unexpected type of pattern given: ${pattern.constructor.name} Debug name: ${(pattern as any).class_name}`
+               );
+            }
+      }
 
-        */
-    }
+      if (convert_type !== PatternYieldType.None) {
+            hir_node.convert_emit_type(convert_type);
+      }
 
-    export class EmitError extends IRBase {
-        /*
-        auto [error_node_token] = context.reserve_node<AST::BaseErrorNode>();
-        auto& [error_node_reference_token] = context.get_node_reference<AST::BaseErrorNode>(error_handle_token);
-        [error_node_reference_token].node_type = static_cast<AST::NodeType>(AST::BaseTypes::Invalid);
-        [error_node_reference_token].error_code = static_cast<AST::ErrorCode>([get_error_path(error_code_enum,LANG_ID]);
-        [error_node_reference_token].error_span = Common::TokenSpan([start_index_token], context.source->peeked_char_index);
-        [error_node_reference_token].ast_byproduct = #if (node_created_in_function) 
-        #then #emit [get_previous_node_token_in_current_function()] 
-        #else #emit context.get_null_node();
-        #end
-        */
-    };
+      return hir_node;
+   }
 
-    /**
-     * Signals a failure condition, instantiating an error node.
-     */
-    export class RecordError extends IRBase {
-        constructor(
-            public error_code_enum: number, 
-            public start_index_token: IdentifierToken,
-            public error_token: IdentifierToken
-        ) {
-            super();
-        }
+   function lower_to_lir()
+   {
 
-        /*
-        auto [error_token] = context.record_error([error_node_token],[LANG_ID_TOKEN]);
-        */
-    }
-
-    /**
-     * Flags an error node as committed, disabling further upstream backtracking.
-     */
-    export class CommitError extends IRBase {
-        constructor(public error_token: IdentifierToken) {
-            super();
-        }
-        /* 
-            [error_token].commit();
-        */
-    }
-
-    /**
-     * Explicit return statement from a parsing block or function.
-     */
-    export class Return extends IRBase {
-        constructor() {
-            super();
-        }
-        /*
-        return [expression.to_string()];
-        */
-    }
-
-    /**
-     * Handles loop mechanics for quantifiers (+, *, {min, max}).
-     */
-    export class QuantityCheck extends IRBase {
-        constructor(
-            public min_count: number, 
-            public max_count: number) {
-            super();
-        }
-
-    }
-
-    /**
-     * Implements choice branch logic.
-     */
-    export class ChoiceBranch extends IRBase {
-        constructor(public choice_pattern_names: string[]) {
-            super();
-        }
-    }
+   };
 };

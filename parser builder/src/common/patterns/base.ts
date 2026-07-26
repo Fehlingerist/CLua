@@ -1,15 +1,15 @@
 export enum PatternYieldType {
     Invalid,
     None,
-    NodeHandle, 
-    TokenSpan,
+    NodeHandle,
+    TokenSpanNode,
     Symbol,
     NodeChain
 };
 
-export type PatternType = BasePattern;
+export type PatternType = PrimitivePattern;
 
-export abstract class BasePattern {
+abstract class BasePattern {
     recovery_pattern: BasePattern | undefined;
     class_name: string;
     yield_type: PatternYieldType = PatternYieldType.None;
@@ -64,5 +64,30 @@ export abstract class PrimitivePattern extends BasePattern {
         this.node_id = node_id;
         this.yield_type = PatternYieldType.NodeHandle;
         return this;
+    };
+};
+
+export class LanguageRoot extends PrimitivePattern{
+    root!: BasePattern;
+    language_name: string = "";
+
+    constructor(language_name: string)
+    {
+        super();
+        this.language_name = language_name;
+    };
+
+    set_root(pattern: BasePattern): this{
+        this.root = pattern;
+        return this;
+    };
+
+    get_root(): BasePattern{
+        if (this.root === undefined){
+            throw new Error(
+                `Root must be defined in ${this.language_name}`
+            );
+        };
+        return this.root;
     };
 };

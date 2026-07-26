@@ -18,7 +18,7 @@ export class CharRange extends PrimitivePattern {
     {
         super();
         this.char_ranges = new Array<CharRangeVal>();
-        this.yield_type = PatternYieldType.TokenSpan;
+        this.yield_type = PatternYieldType.TokenSpanNode;
     };
 
     private insert_char_range_base(new_range: CharRangeVal)
@@ -83,6 +83,7 @@ export class CharRange extends PrimitivePattern {
 export class MatchSymbolPattern extends PrimitivePattern {
     expected_symbol: string = "";
     symbol_label: string = "";
+    is_hardset_symbol: boolean = false;
 
     constructor(expected_symbol: string, symbol_label: string = "") {
         super();
@@ -96,4 +97,14 @@ export class MatchSymbolPattern extends PrimitivePattern {
     get_yield_type(): PatternYieldType { 
         return PatternYieldType.Symbol 
     }
+
+    /* 
+        Hardened symbol makes it impossible for a pattern to express that hardened symbol
+        in char range sequence.
+    */
+    harden(): this
+    {
+        this.is_hardset_symbol = true;
+        return this;
+    };
 }

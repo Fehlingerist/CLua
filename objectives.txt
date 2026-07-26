@@ -1,4 +1,9 @@
-Has to be finished by 22nd of July
-    -Define IR blocks
-    -Emit code
+Write IR handlers for all of these patterns:
+    CaptureLengthPattern, MatchContextLengthPattern, 
     
+    PatternSwitchParser,
+    
+    NodeConversion, SpanConversion, NodeChainConversion,
+    
+    ChoicePattern, InvertedPattern, Pattern, QuantityPattern,
+    CharRange, MatchSymbolPattern

@@ -5,5 +5,6 @@ export enum NodeID {
     FunctionCall,
     Comment,
     StringLiteral,
-    Root
+    Root,
+    GenericIdentifier
 }

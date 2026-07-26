@@ -1,16 +1,15 @@
 // config/nodes_define.ts
 import { NodeID } from "./nodes_declare";
-import { NodeDefinition, Field } from "#root/common/ast/node";
-import { Pattern as P } from "#common/pattern";
 import * as LangDefinition from "./grammar"
+import { NodeDefinition, Field, NodeRegistry as NodeDefinitions, NodeID as NodeNumber } from "#common/ast/node";
 import { as_node_chain, as_span } from "#root/common/patterns/conversions";
 
-export const NodeRegistry = new Map<NodeID, NodeDefinition>();
+export const NodeRegistry = new NodeDefinitions();
 
 NodeRegistry.set(
     NodeID.Identifier, 
     new NodeDefinition("IdentifierNode")
-        .insert_field(new Field("span", P.as_span(LangDefinition.GenericIdentifier))) 
+        .insert_field(new Field("span", as_span(LangDefinition.GenericIdentifier))) 
 );
 
 NodeRegistry.set(

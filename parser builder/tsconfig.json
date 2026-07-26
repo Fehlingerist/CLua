@@ -1,15 +1,18 @@
 {
   "compilerOptions": {
-    "target": "es2020",
-    "module": "commonjs",
-    "rootDir": "src", // Note: If adding paths outside ./src, you may need to adjust or remove rootDir
+    "target": "ESNext",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+
+    "rootDir": "src", 
     "outDir": "build",
     "types": [],
 
     "paths": {
       "#root/*": ["./src/*"],
       "#config/*": ["./src/config/*"],
-      "#common/*": ["./src/common/*"]
+      "#common/*": ["./src/common/*"],
+      "#node/*": ["./node_modules/*"]
     },
 
     "noUncheckedIndexedAccess": true,
@@ -23,6 +26,7 @@
   },
   
   "include": [
-    "src/**/*"
+    "src/**/*",
+    "node_modules/**/*"
   ]
 }

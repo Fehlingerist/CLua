@@ -11,5 +11,8 @@
   "exports": {
     ".": "./build/main.js",
     "./build/*": "./build/*.js"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1"
   }
 }

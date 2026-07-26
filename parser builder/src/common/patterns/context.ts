@@ -1,4 +1,4 @@
-import { BasePattern, PatternType, PrimitivePattern } from "./base";
+import { PatternType, PrimitivePattern } from "./base";
 
 //Sets a clear boundary between languages and implies 
 //that new keyword table is generated for the new language
@@ -15,7 +15,7 @@ export class PatternSwitchParser extends PrimitivePattern {
 */
 export class CaptureLengthPattern extends PrimitivePattern {
     constructor(
-        public readonly child_pattern: BasePattern, 
+        public readonly child_pattern: PrimitivePattern, 
         public readonly context_key: LengthContext
     ) {
         super();
@@ -31,7 +31,7 @@ export class CaptureLengthPattern extends PrimitivePattern {
 */
 export class MatchContextLengthPattern extends PrimitivePattern {
     constructor(
-        public readonly child_pattern: BasePattern, 
+        public readonly child_pattern: PrimitivePattern, 
         public readonly context_key: LengthContext
     ) {
         super();

@@ -1,15 +1,15 @@
-import { BasePattern, PatternYieldType, PatternType } from "./base";
+import {PrimitivePattern, PatternYieldType, PatternType } from "./base";
 
 /*
 Objects inheriting conversion ensure that pattern actually can be converted to 
 object of selected conversion type using logic although implicitly typed fields are 
 allowed too.
 */
-export class Conversion extends BasePattern
+export class Conversion extends PrimitivePattern
 {
-    pattern: BasePattern
+    pattern: PrimitivePattern
 
-    constructor(pattern: BasePattern)
+    constructor(pattern: PrimitivePattern)
     {
         super();
         this.pattern = pattern;
@@ -21,17 +21,17 @@ export class Conversion extends BasePattern
 }
 
 export class SpanConversion extends Conversion{    
-    constructor(pattern: BasePattern)
+    constructor(pattern: PrimitivePattern)
     {
         super(pattern);
-        this.yield_type = PatternYieldType.TokenSpan;
+        this.yield_type = PatternYieldType.TokenSpanNode;
         /* 
             Any pattern can be converted to a span
         */
     };
 }
 export class NodeConversion extends Conversion{    
-    constructor(pattern: BasePattern)
+    constructor(pattern: PrimitivePattern)
     {
         super(pattern);
         this.yield_type = PatternYieldType.NodeHandle;
@@ -41,7 +41,7 @@ export class NodeConversion extends Conversion{
     };
 }
 export class SymbolConversion extends Conversion{    
-    constructor(pattern: BasePattern)
+    constructor(pattern: PrimitivePattern)
     {
         super(pattern);
         this.yield_type = PatternYieldType.Symbol;
@@ -54,24 +54,24 @@ export class SymbolConversion extends Conversion{
 }
 
 export class NodeChainConversion extends Conversion {
-    constructor(pattern: BasePattern)
+    constructor(pattern: PrimitivePattern)
     {
         super(pattern);
         this.yield_type = PatternYieldType.NodeHandle;
     };
 };
 
-export function as_node(pattern: BasePattern): NodeConversion
+export function as_node(pattern: PrimitivePattern): NodeConversion
 {
     return new NodeConversion(pattern);
 }
 
-export function as_span(pattern: BasePattern): SpanConversion
+export function as_span(pattern: PrimitivePattern): SpanConversion
 {
     return new SpanConversion(pattern);  
 };
 
-export function as_symbol(pattern: BasePattern): SymbolConversion
+export function as_symbol(pattern: PrimitivePattern): SymbolConversion
 {
     return new SymbolConversion(pattern);
 };
@@ -82,7 +82,7 @@ export function as_symbol(pattern: BasePattern): SymbolConversion
 
     as_node_chain: requires the ChoicePattern to all of it's patterns to emit nodes
 */
-export function as_node_chain(pattern: BasePattern): NodeChainConversion
+export function as_node_chain(pattern: PrimitivePattern): NodeChainConversion
 {
     return new NodeChainConversion(pattern);
 };

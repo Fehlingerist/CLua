@@ -27,6 +27,7 @@ namespace CLua
         auto& reference_token = context.get_node_reference<AST::TokenSpanNode>(handle_token);
         int min_token = 1;
         while (context.can_consume() && context.see_current() == ' ') { context.consume(); --min_token; }
+
         if (min_token > 0) {
             auto error_handle_token = context.reserve_node<AST::BaseErrorNode>();
             auto& error_reference_token = context.get_node_reference<AST::BaseErrorNode>(error_handle_token);
@@ -36,6 +37,7 @@ namespace CLua
             error_reference_token.ast_byproduct = context.get_null_node();
             return context.record_error(error_handle_token,CLua::LanguageID);
         }
+        
         reference_token.node_type = static_cast<AST::NodeType>(AST::BaseTypes::TokenSpan);
         reference_token.token_span = Common::TokenSpan(start_token, context.source->peeked_char_index);
         return handle_token;

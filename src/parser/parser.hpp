@@ -3,6 +3,7 @@
 #include <common/language_processing/parser.hpp>
 #include <common/language_processing/node_handle.hpp>
 
+/*This will be generated all in one .cpp file*/
 #include "nodes.hpp"
 #include "symbols.hpp"
 #include "error_codes.hpp"
