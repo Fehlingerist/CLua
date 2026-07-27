@@ -1,8 +1,10 @@
 import { LanguageRoot } from "#common/patterns/index";
 import { NodeRegistry} from "#common/ast/node";
-import { PrimitivePattern, MatchSymbolPattern } from "#common/patterns/index";
-import { ErrorDefinitionList } from "#common/ast/error";
+import { Pattern, PrimitivePattern, MatchSymbolPattern } from "#common/patterns/index";
+import { ErrorDefinitionList } from "#common/ast/error"; 
 import { warn } from "node:console";
+import { IR } from "#common/ir/ir";
+
 
 /* 
     Generator converts patterns into a mega parser file.
@@ -68,14 +70,15 @@ export class GenerationInfo {
 export class GeneratedFiles {
   generation_info: GenerationInfo
 
-  parser_header: string;
-  parser_implementation: string;
+  header_ir: IR.IRRoot;
+  implementation_ir: IR.IRRoot;
 
   constructor(generator_context: GeneratorContext)
   {
     this.generation_info = new GenerationInfo(generator_context);
-    this.parser_header = "";
-    this.parser_implementation = "";
+
+    this.header_ir = new IR.IRRoot();
+    this.implementation_ir = new IR.IRRoot();
   };
 };
 
@@ -85,18 +88,12 @@ export function generate_parser_code(generator_context: GeneratorContext): Gener
   let hardened_symbols = generation_info.hardened_symbols;
   let symbol_map = generation_info.symbol_map;
 
-  // Track patterns we have already visited to prevent infinite loops in cyclic grammars
   const visited_patterns = new Set<PrimitivePattern>();
 
-  /* 
-    1. Define the Recursive Grammar Walker
-  */
   function walk_grammar_pattern(pattern: PrimitivePattern, current_language: LanguageRoot) {
     if (!pattern || visited_patterns.has(pattern)) return;
     visited_patterns.add(pattern);
 
-    // Track Error Code Usage
-    // (Assuming pattern has an error property or internal ID from .with_error())
     if (pattern.error_id !== undefined && pattern.error_id !== -1) {
       const used_flags = generation_info.used_error_codes.get(current_language);
       if (used_flags && pattern.error_id < used_flags.length) {
@@ -140,18 +137,12 @@ export function generate_parser_code(generator_context: GeneratorContext): Gener
     }
   }
 
-  /* 
-    2. Start Traversal from the Main Root
-  */
   if (generator_context.main_root) {
     for (const starting_pattern of generator_context.main_root.root.get_children()) {
       walk_grammar_pattern(starting_pattern, generator_context.main_root);
     }
   }
 
-  /* 
-    3. Finalize Error Code Check Metrics
-  */
   let all_errors_used = true;
   generation_info.used_error_codes.forEach((flags) => {
     if (flags.includes(false)) {
@@ -160,7 +151,44 @@ export function generate_parser_code(generator_context: GeneratorContext): Gener
   });
   generation_info.not_all_error_codes_used = !all_errors_used;
 
-  generation_info.display_info();
+  let header_ir: IR.IRRoot = generated_files.header_ir;
+
+  header_ir.ir_group.insert_member(
+    new IR.IRIncludeBlock()
+    .add_include("<common/language_processing/parser.hpp>")
+    .add_include("<common/language_processing/node_handle.hpp>")
+    
+    .add_include("nodes.hpp",true)
+    .add_include("symbols.hpp",true)
+    .add_include("error_codes.hpp",true)
+  );
+
+  let implementation_root: IR.IRRoot = new IR.IRRoot();
+
+  let implementation_namespace: IR.IRNamespace = new IR.IRNamespace("Languages");
+
+  header_ir.ir_group.insert_member(
+    implementation_namespace
+  );
+
+  const node_handle: IR.Type = new IR.Type().insert_type("NodeHandle");
+
+  let pattern_to_ir_map = new Map<Pattern,IR.IRFunction>();
+
+  visited_patterns.forEach((pattern: PrimitivePattern) => {
+    if (pattern.constructor! == Pattern)
+    {
+      let ir_function = new IR.IRFunction(node_handle,pattern.class_name);
+
+      implementation_namespace.ir_group.insert_member(
+        ir_function
+      );
+
+      pattern_to_ir_map.set(pattern as Pattern,ir_function);
+    };
+  });
+
+
 
   return generated_files;
 }

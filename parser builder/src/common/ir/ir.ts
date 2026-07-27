@@ -7,203 +7,117 @@ import {
    QuantityPattern,
    CharRange,
    CaptureLengthPattern,
-   MatchSymbolPattern} from "#common/patterns/index";
+   MatchSymbolPattern,
+   Conversion
+} from "#common/patterns/index";
 import * as Nodes from "#common/ast/node";
-import { Conversion } from "../patterns";
 
-export namespace LowIR {
-   /* 
-   IR patterns in the example parser
-   */
-};
+export namespace IR {
+   export abstract class BaseIR {}
 
-export namespace HighIR {
-   /* 
-    CaptureLengthPattern, MatchContextLengthPattern, //extension of quantity pattern
-    --Length capture context
-    
-    PatternSwitchParser,
-
-    NodeConversion, SpanConversion, NodeChainConversion, //converted into properties 
-    
-    ChoicePattern, InvertedPattern, Pattern, QuantityPattern,
-    CharRange, MatchSymbolPattern
-   */
-
-   abstract class HIRBase {
-      convert_to: PatternYieldType
-      attached_pattern: PrimitivePattern
-
-      constructor(pattern: PrimitivePattern)
-      {
-         this.attached_pattern = pattern;
-         this.convert_to = PatternYieldType.None;//code for inferring type from pattern
-      };
-
-      abstract convert_emit_type(pattern_emit_type: PatternYieldType): void;
-
-      get_pattern_type()
-      {
-         if (this.convert_to != PatternYieldType.None)
-         {
-            return this.convert_to;
-         };
-
-         return this.attached_pattern.get_yield_type();
-      };
-   };
-
-   export class HIRSequence extends HIRBase {
-      symbol_token: number = -1;
-
-      constructor(pattern: PrimitivePattern)
-      {
-         super(pattern);
-      };    
-
-      convert_emit_type(pattern_emit_type: PatternYieldType): void {
-         if (
-            pattern_emit_type != PatternYieldType.Symbol && 
-            pattern_emit_type != PatternYieldType.TokenSpanNode &&
-            pattern_emit_type != PatternYieldType.None
-         ){
-            throw new Error(
-               "The only valid emittable type is Symbol or TokenSpanNode for sequence pattern"
-            );
-         };
-         this.convert_to = pattern_emit_type;
-      };
-
-      set_symbol_token(new_symbol_token: number)
-      {
-         this.symbol_token = new_symbol_token;
-      };
-   }
-   export class HIRChoice extends HIRBase {
-      constructor(pattern: PrimitivePattern)
-      {
-         super(pattern);
-      };
-
-      //Rules of HIRChoice
-      //Can be converted to anything but all patterns must be convertable
-      convert_emit_type(pattern_emit_type: PatternYieldType): void {
-         
-      };
-   }
-   export class HIRInverted extends HIRBase {
-      constructor(pattern: PrimitivePattern)
-      {
-         super(pattern);
-      };
+   export class IRRoot extends BaseIR {
+      public ir_group: IRGroup;
       
-      convert_emit_type(pattern_emit_type: PatternYieldType): void {
-      
-      }
-   }
-   export class HIRQuantity extends HIRBase {
-      constructor(pattern: PrimitivePattern)
-      {
-         super(pattern);
-      };
-      
-      convert_emit_type(pattern_emit_type: PatternYieldType): void {
-      
-      }
-   }
-   export class HIRCharRange extends HIRBase {
-      constructor(pattern: PrimitivePattern)
-      {
-         super(pattern);
-      };
-      
-      convert_emit_type(pattern_emit_type: PatternYieldType): void {
-      
-      }
-   }
-   export class HIRMatchSymbol extends HIRBase {
-      constructor(pattern: PrimitivePattern)
-      {
-         super(pattern);
-      };
-      
-      convert_emit_type(pattern_emit_type: PatternYieldType): void {
-      
-      }
-   }
-   export class HIRCaptureLength extends HIRBase {
-      constructor(pattern: PrimitivePattern)
-      {
-         super(pattern);
-      };
-      
-      convert_emit_type(pattern_emit_type: PatternYieldType): void {
-      
+      constructor() {
+         super();
+         this.ir_group = new IRGroup();
       }
    }
 
-   export function convert_pattern_to_hir(pattern: PrimitivePattern): HIRBase {
-      const is_converter = pattern instanceof Conversion;
-      let convert_type: PatternYieldType = PatternYieldType.None;
+   export class IRGroup {
+      private members: BaseIR[] = [];
 
-      if (is_converter) {
-            let candidate = pattern.get_children()[0]; // conversion implicitly holds only 1 pattern member
-
-            if (!candidate) {
-               throw new Error("Invalid conversion");
-            }
-
-            convert_type = (pattern as Conversion).get_yield_type();
-            pattern = candidate;
+      public insert_member(member: BaseIR): void {
+         this.members.push(member);
       }
 
-      let hir_node: HIRBase;
-
-      switch (true) {
-            case pattern instanceof Pattern: {
-               hir_node = new HIRSequence(pattern);
-               break;
-            }
-            case pattern instanceof ChoicePattern: {
-               hir_node = new HIRChoice(pattern);
-               break;
-            }
-            case pattern instanceof InvertedPattern: {
-               hir_node = new HIRInverted(pattern);
-               break;
-            }
-            case pattern instanceof QuantityPattern: {
-               hir_node = new HIRQuantity(pattern);
-               break;
-            }
-            case pattern instanceof CharRange: {
-               hir_node = new HIRCharRange(pattern);
-               break;
-            }
-            case pattern instanceof MatchSymbolPattern: {
-               hir_node = new HIRMatchSymbol(pattern);
-               break;
-            }
-            case pattern instanceof CaptureLengthPattern: {
-               hir_node = new HIRCaptureLength(pattern);
-               break;
-            }
-            default: {
-               throw new Error(
-                  `Unexpected type of pattern given: ${pattern.constructor.name} Debug name: ${(pattern as any).class_name}`
-               );
-            }
+      public remove_member(member: BaseIR): void {
+         const index = this.members.indexOf(member);
+         if (index !== -1) {
+            this.members.splice(index, 1);
+         }
       }
 
-      if (convert_type !== PatternYieldType.None) {
-            hir_node.convert_emit_type(convert_type);
+      public remove_member_at(index: number): boolean {
+         if (index >= 0 && index < this.members.length) {
+            this.members.splice(index, 1);
+            return true;
+         }
+         return false;
       }
 
-      return hir_node;
+      public get_members(): BaseIR[] {
+         return this.members;
+      }
    }
 
-   function lower_to_lir()
-   {
+   export class Type {
+      public types: Array<string>;
+      
+      constructor() {
+         this.types = new Array<string>();
+      }
 
-   };
-};
+      public insert_type(type: string): this {
+         this.types.push(type);
+         return this;
+      }
+
+      public emit(): string {
+         return this.types.join("::");
+      }
+   }
+
+   export class IRIncludeBlock extends BaseIR {
+      public includes: Array<{ path: string; is_local: boolean }>;
+
+      constructor() {
+         super();
+         this.includes = new Array<{ path: string; is_local: boolean }>();
+      }
+
+      public add_include(include_path: string, is_local?: boolean): this {
+         let clean_path = include_path.trim();
+         let local_determined = is_local;
+
+         if (local_determined === undefined) {
+            if (clean_path.startsWith('<') && clean_path.endsWith('>')) {
+               local_determined = false;
+               clean_path = clean_path.slice(1, -1);
+            } else if (clean_path.startsWith('"') && clean_path.endsWith('"')) {
+               local_determined = true;
+               clean_path = clean_path.slice(1, -1);
+            } else {
+               local_determined = true;
+            }
+         }
+
+         this.includes.push({ path: clean_path, is_local: local_determined });
+         return this;
+      }
+
+      public emit_includes(): string[] {
+         return this.includes.map(inc => 
+            inc.is_local ? `"${inc.path}"` : `<${inc.path}>`
+         );
+      }
+   }
+
+   export class IRNamespace extends BaseIR {
+      public ir_group: IRGroup;
+
+      constructor(public namespace: string) {
+         super();
+         this.ir_group = new IRGroup();
+      }
+   }
+
+   export class IRFunction extends BaseIR {
+      constructor(
+         public return_type: Type,
+         public identifier: string
+      ) {
+         super();
+      }
+   }
+}
