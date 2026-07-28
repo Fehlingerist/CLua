@@ -4,6 +4,7 @@ import { Pattern, PrimitivePattern, MatchSymbolPattern } from "#common/patterns/
 import { ErrorDefinitionList } from "#common/ast/error"; 
 import { warn } from "node:console";
 import { IR } from "#common/ir/ir";
+import { start } from "node:repl";
 
 
 /* 
@@ -83,6 +84,19 @@ export class GeneratedFiles {
 };
 
 export function generate_parser_code(generator_context: GeneratorContext): GeneratedFiles {
+  let name_list: Map<string,boolean> = new Map<string,boolean>();
+  function get_unique_string_id(starting_string: string): string
+  {
+    let prefix_value = 0;
+    while(name_list.has(starting_string + prefix_value))
+    {
+      prefix_value++;
+    };
+
+    name_list.set(starting_string + prefix_value,true);
+    return starting_string + prefix_value;
+  };
+  
   let generated_files = new GeneratedFiles(generator_context);
   let generation_info = generated_files.generation_info;
   let hardened_symbols = generation_info.hardened_symbols;
@@ -163,11 +177,11 @@ export function generate_parser_code(generator_context: GeneratorContext): Gener
     .add_include("error_codes.hpp",true)
   );
 
-  let implementation_root: IR.IRRoot = new IR.IRRoot();
+  let implementation_root: IR.IRRoot = generated_files.implementation_ir;
 
   let implementation_namespace: IR.IRNamespace = new IR.IRNamespace("Languages");
 
-  header_ir.ir_group.insert_member(
+  implementation_root.ir_group.insert_member(
     implementation_namespace
   );
 
@@ -178,7 +192,7 @@ export function generate_parser_code(generator_context: GeneratorContext): Gener
   visited_patterns.forEach((pattern: PrimitivePattern) => {
     if (pattern.constructor! == Pattern)
     {
-      let ir_function = new IR.IRFunction(node_handle,pattern.class_name);
+      let ir_function = new IR.IRFunction(node_handle,get_unique_string_id(pattern.class_name));
 
       implementation_namespace.ir_group.insert_member(
         ir_function
@@ -188,7 +202,19 @@ export function generate_parser_code(generator_context: GeneratorContext): Gener
     };
   });
 
+  /* 
+    Now start generating IR per pattern
+    For nown I'll use only low level IR
+  */
 
+  function generate_ir()
+  {
+    //read patterns on the list
+    //for each pattern generate function code   
+    //(in implementation ir)
+
+    //in header define node classes/errors and symbol enums per language
+  };
 
   return generated_files;
 }
