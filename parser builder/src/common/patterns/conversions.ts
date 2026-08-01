@@ -7,9 +7,9 @@ allowed too.
 */
 export class Conversion extends PrimitivePattern
 {
-    pattern: PrimitivePattern
+    pattern: PatternType
 
-    constructor(pattern: PrimitivePattern)
+    constructor(pattern: PatternType)
     {
         super();
         this.pattern = pattern;
@@ -31,7 +31,7 @@ export class SpanConversion extends Conversion{
     };
 }
 export class NodeConversion extends Conversion{    
-    constructor(pattern: PrimitivePattern)
+    constructor(pattern: PatternType)
     {
         super(pattern);
         this.yield_type = PatternYieldType.NodeHandle;
@@ -41,7 +41,7 @@ export class NodeConversion extends Conversion{
     };
 }
 export class SymbolConversion extends Conversion{    
-    constructor(pattern: PrimitivePattern)
+    constructor(pattern: PatternType)
     {
         super(pattern);
         this.yield_type = PatternYieldType.Symbol;
@@ -54,24 +54,24 @@ export class SymbolConversion extends Conversion{
 }
 
 export class NodeChainConversion extends Conversion {
-    constructor(pattern: PrimitivePattern)
+    constructor(pattern: PatternType)
     {
         super(pattern);
         this.yield_type = PatternYieldType.NodeHandle;
     };
 };
 
-export function as_node(pattern: PrimitivePattern): NodeConversion
+export function as_node(pattern: PatternType): NodeConversion
 {
     return new NodeConversion(pattern);
 }
 
-export function as_span(pattern: PrimitivePattern): SpanConversion
+export function as_span(pattern: PatternType): SpanConversion
 {
     return new SpanConversion(pattern);  
 };
 
-export function as_symbol(pattern: PrimitivePattern): SymbolConversion
+export function as_symbol(pattern: PatternType): SymbolConversion
 {
     return new SymbolConversion(pattern);
 };
@@ -82,7 +82,7 @@ export function as_symbol(pattern: PrimitivePattern): SymbolConversion
 
     as_node_chain: requires the ChoicePattern to all of it's patterns to emit nodes
 */
-export function as_node_chain(pattern: PrimitivePattern): NodeChainConversion
+export function as_node_chain(pattern: PatternType): NodeChainConversion
 {
     return new NodeChainConversion(pattern);
 };

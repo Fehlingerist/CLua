@@ -1,11 +1,9 @@
-import { LanguageRoot } from "#common/patterns/index";
+import { LanguageRoot, Pattern } from "#common/patterns/index";
 import { NodeRegistry} from "#common/ast/node";
-import { Pattern, PrimitivePattern, MatchSymbolPattern } from "#common/patterns/index";
+import { PatternType, MatchSymbolPattern, ChoicePattern } from "#common/patterns/index";
 import { ErrorDefinitionList } from "#common/ast/error"; 
-import { warn } from "node:console";
 import { IR } from "#common/ir/ir";
-import { start } from "node:repl";
-
+import util from "node:util";
 
 /* 
     Generator converts patterns into a mega parser file.
@@ -68,7 +66,7 @@ export class GenerationInfo {
   };
 };
 
-export class GeneratedFiles {
+export class ParserIR {
   generation_info: GenerationInfo
 
   header_ir: IR.IRRoot;
@@ -83,138 +81,117 @@ export class GeneratedFiles {
   };
 };
 
-export function generate_parser_code(generator_context: GeneratorContext): GeneratedFiles {
-  let name_list: Map<string,boolean> = new Map<string,boolean>();
-  function get_unique_string_id(starting_string: string): string
+export class PatternConflictResolution {
+
+};
+
+export class PatternConflictContext {
+  constructor(
+    public patterna: PatternType,
+    public patternb: PatternType
+  ){}
+
+  pattern_conflict_resolution: PatternConflictResolution = new PatternConflictResolution();
+};
+
+class LanguageAnalysisContext {
+  pattern_conflicts: Array<PatternConflictContext>;
+  flattened_decision_tree: Array<PatternType>;
+
+  constructor(public generator_context: GeneratorContext)
   {
-    let prefix_value = 0;
-    while(name_list.has(starting_string + prefix_value))
-    {
-      prefix_value++;
-    };
-
-    name_list.set(starting_string + prefix_value,true);
-    return starting_string + prefix_value;
+    this.pattern_conflicts = new Array<PatternConflictContext>();
+    this.flattened_decision_tree = new Array<PatternType>();
   };
-  
-  let generated_files = new GeneratedFiles(generator_context);
-  let generation_info = generated_files.generation_info;
-  let hardened_symbols = generation_info.hardened_symbols;
-  let symbol_map = generation_info.symbol_map;
 
-  const visited_patterns = new Set<PrimitivePattern>();
+  analyze_language()
+  {
+    /* 
+      -Find potential pattern conflicts
+      {
+        My guess here is that I generate an array of all posibilities of order of the pattern, 
+        but I must account for recursion via some abtract class and this will probably the main 
+        problem to solve.
 
-  function walk_grammar_pattern(pattern: PrimitivePattern, current_language: LanguageRoot) {
-    if (!pattern || visited_patterns.has(pattern)) return;
-    visited_patterns.add(pattern);
-
-    if (pattern.error_id !== undefined && pattern.error_id !== -1) {
-      const used_flags = generation_info.used_error_codes.get(current_language);
-      if (used_flags && pattern.error_id < used_flags.length) {
-        used_flags[pattern.error_id] = true;
+        After generation of the linear arrays I try to look for overlaps and mark them as conflicts to resolve.
+        Also these patterns should be flattened from patterns to the their rawest form leaving almost no abstraction.
+        In this case InvertedPattern must be preserved, QuantityPattern, ChoicePattern
       }
-    }
-
-    if (pattern instanceof LanguageRoot)
-    {
-      for (const starting_pattern of generator_context.main_root.root.get_children()) {
-        walk_grammar_pattern(starting_pattern, pattern);
-      }
-    }else if (pattern instanceof MatchSymbolPattern) {
-      const literal = pattern.expected_symbol;
-
-      // Handle Hardened Symbols
-      if (pattern.is_hardset_symbol) {
-        if (!hardened_symbols.includes(pattern)) {
-          hardened_symbols.push(pattern);
-        }
-      }
-
-      // Check for structural ambiguities (Same literal, different symbol labels)
-      if (symbol_map.has(literal)) {
-        const existing_pattern = symbol_map.get(literal)!;
-        if (existing_pattern.symbol_label !== pattern.symbol_label) {
-          warn(
-            `Grammar Ambiguity Warning: The symbol text "${literal}" is registered under ` +
-            `multiple labels: "${existing_pattern.symbol_label}" and "${pattern.symbol_label}".`
-          );
-        }
-      } else {
-        symbol_map.set(literal, pattern);
-      }
-    }
-    else {
-      const children = pattern.get_children();
-      for (const child of children) {
-        walk_grammar_pattern(child, current_language);
-      }
-    }
-  }
-
-  if (generator_context.main_root) {
-    for (const starting_pattern of generator_context.main_root.root.get_children()) {
-      walk_grammar_pattern(starting_pattern, generator_context.main_root);
-    }
-  }
-
-  let all_errors_used = true;
-  generation_info.used_error_codes.forEach((flags) => {
-    if (flags.includes(false)) {
-      all_errors_used = false;
-    }
-  });
-  generation_info.not_all_error_codes_used = !all_errors_used;
-
-  let header_ir: IR.IRRoot = generated_files.header_ir;
-
-  header_ir.ir_group.insert_member(
-    new IR.IRIncludeBlock()
-    .add_include("<common/language_processing/parser.hpp>")
-    .add_include("<common/language_processing/node_handle.hpp>")
+      
+      -Generate pattern conflict resolutions if conflicts do exist 
+      
+      -Analyze if all error codes have been used
+      
+      -Analyze how node maps to pattern field initialization so
+      that the read fields can be reused to be assigned to node field.
+    */
+    const grammar_description_root = this.generator_context.main_root; 
+    let met_patterns: Set<PatternType> = new Set<PatternType>();
+    let recursive_patterns: Set<PatternType> = new Set<PatternType>();
     
-    .add_include("nodes.hpp",true)
-    .add_include("symbols.hpp",true)
-    .add_include("error_codes.hpp",true)
-  );
+    function traverse_and_flatten(
+      current_node: PatternType,
+      traverse_history: Array<PatternType> = [],
+      flattened_array: Array<PatternType> = []
+    ): Array<PatternType> {
+      flattened_array = [...flattened_array]; 
+      //I am going to make a lot of copies but I guess it won't crash on most of the 
+      //machines
 
-  let implementation_root: IR.IRRoot = generated_files.implementation_ir;
+      if (traverse_history.includes(current_node)) {
+        recursive_patterns.add(current_node);
+        flattened_array.push(current_node); 
+        return flattened_array;
+      }
 
-  let implementation_namespace: IR.IRNamespace = new IR.IRNamespace("Languages");
+      met_patterns.add(current_node);
+      const updated_history = [...traverse_history, current_node];
 
-  implementation_root.ir_group.insert_member(
-    implementation_namespace
-  );
+      const children = current_node.get_children();
 
-  const node_handle: IR.Type = new IR.Type().insert_type("NodeHandle");
+      if (!children || children.length === 0) {
+        flattened_array.push(current_node);
+        return flattened_array;
+      }
 
-  let pattern_to_ir_map = new Map<Pattern,IR.IRFunction>();
+      if (current_node.constructor == ChoicePattern) {
+        for (const child of children) {
+          traverse_and_flatten(child, updated_history, flattened_array);
+        }
+        return flattened_array;
+      } else if (current_node.constructor == Pattern)
+      {
+        for (const child of children) {
+          traverse_and_flatten(child, updated_history, flattened_array);
+        }
+      };
 
-  visited_patterns.forEach((pattern: PrimitivePattern) => {
-    if (pattern.constructor! == Pattern)
-    {
-      let ir_function = new IR.IRFunction(node_handle,get_unique_string_id(pattern.class_name));
+      return flattened_array;
+    }
+    let result: Array<PatternType> = traverse_and_flatten(
+                grammar_description_root,
+                [grammar_description_root] as Array<PatternType>);
 
-      implementation_namespace.ir_group.insert_member(
-        ir_function
-      );
-
-      pattern_to_ir_map.set(pattern as Pattern,ir_function);
-    };
-  });
-
-  /* 
-    Now start generating IR per pattern
-    For nown I'll use only low level IR
-  */
-
-  function generate_ir()
-  {
-    //read patterns on the list
-    //for each pattern generate function code   
-    //(in implementation ir)
-
-    //in header define node classes/errors and symbol enums per language
+    console.log(util.inspect(result, { 
+      depth: null,       // Prevents replacing deep arrays/objects with [Array] or [Object]
+      colors: true,      // Keeps terminal syntax highlighting clean
+      maxArrayLength: null // Prints ALL array items, no matter how long the array is
+    }));
   };
+};
 
-  return generated_files;
+export function transpile_ir_to_code(ir: IR.IRRoot)
+{
+
+};
+
+export function generate_parser_ir(language_analysis_context: LanguageAnalysisContext): ParserIR | void
+{
+
+};
+
+export function get_language_analysis(generator_context: GeneratorContext): LanguageAnalysisContext{
+  let language_analysis_context = new LanguageAnalysisContext(generator_context); 
+  language_analysis_context.analyze_language();
+  return language_analysis_context;
 }

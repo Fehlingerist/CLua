@@ -33,7 +33,6 @@ export class ChoicePattern extends Pattern {
 
         const first_type = this.pattern_list[0]!.get_yield_type();
 
-        /*
         for (const pattern of this.pattern_list) {
             if (pattern.get_yield_type() !== first_type) {
                 throw new Error(
@@ -41,7 +40,7 @@ export class ChoicePattern extends Pattern {
                     `Alternative paths must yield the same type. Expected: ${first_type}, got: ${pattern.get_yield_type()}`
                 );
             }
-        }*/
+        }
 
         return first_type;
     }
@@ -56,7 +55,7 @@ export class QuantityPattern extends PrimitivePattern {
 
     constructor(
         // The single pattern being quantified
-        public readonly child_pattern: PrimitivePattern,
+        public readonly child_pattern: PatternType,
         public readonly min: number = 0,
         // Using -1 as a sentinel value for Infinity (e.g., zero-or-more)
         public readonly max: number = -1 
@@ -130,21 +129,21 @@ export class QuantityPattern extends PrimitivePattern {
 //Check if interrupt_patterns emit nodes/symbols to warn user
 //if data is being lost
 export class InvertedPattern extends PrimitivePattern {
-    public terminators: Array<PrimitivePattern> = new Array<PrimitivePattern>();
+    public terminators: Array<PatternType> = new Array<PatternType>();
     public inclusive: boolean = true; //does include terminating pattern
-    public interrput_patterns: Array<PrimitivePattern> = new Array<PrimitivePattern>();
+    public interrput_patterns: Array<PatternType> = new Array<PatternType>();
     public node_id: number = -1;
 
     constructor() {
         super();
     }
 
-    public insert_terminator(pattern: PrimitivePattern): this {
+    public insert_terminator(pattern: PatternType): this {
         this.terminators.push(pattern);
         return this;
     }
 
-    public insert_whitelist_pattern(pattern: PrimitivePattern): this {
+    public insert_whitelist_pattern(pattern: PatternType): this {
         this.interrput_patterns.push(pattern);
         return this;
     }

@@ -15,7 +15,7 @@ export class PatternSwitchParser extends PrimitivePattern {
 */
 export class CaptureLengthPattern extends PrimitivePattern {
     constructor(
-        public readonly child_pattern: PrimitivePattern, 
+        public readonly child_pattern: PatternType, 
         public readonly context_key: LengthContext
     ) {
         super();
@@ -31,7 +31,7 @@ export class CaptureLengthPattern extends PrimitivePattern {
 */
 export class MatchContextLengthPattern extends PrimitivePattern {
     constructor(
-        public readonly child_pattern: PrimitivePattern, 
+        public readonly child_pattern: PatternType, 
         public readonly context_key: LengthContext
     ) {
         super();

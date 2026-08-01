@@ -10,7 +10,7 @@ export enum PatternYieldType {
 export type PatternType = PrimitivePattern;
 
 abstract class BasePattern {
-    recovery_pattern: BasePattern | undefined;
+    recovery_pattern: PatternType | undefined;
     class_name: string;
     yield_type: PatternYieldType = PatternYieldType.None;
 
@@ -39,13 +39,13 @@ abstract class BasePattern {
         return this.class_name;
     };
 
-    set_error_recovery_pattern(recovery_pattern: BasePattern)
+    set_error_recovery_pattern(recovery_pattern: PatternType)
     {
         this.recovery_pattern = recovery_pattern;
     };
 }
 
-export abstract class PrimitivePattern extends BasePattern {
+export abstract class PrimitivePattern extends BasePattern{
     error_id: number = -1;
     node_id: number = -1;
 
@@ -68,7 +68,7 @@ export abstract class PrimitivePattern extends BasePattern {
 };
 
 export class LanguageRoot extends PrimitivePattern{
-    root!: BasePattern;
+    root!: PatternType;
     language_name: string = "";
 
     constructor(language_name: string)
@@ -77,12 +77,16 @@ export class LanguageRoot extends PrimitivePattern{
         this.language_name = language_name;
     };
 
-    set_root(pattern: BasePattern): this{
+    get_children(): Array<PatternType> {
+        return [this.root];
+    }
+
+    set_root(pattern: PatternType): this{
         this.root = pattern;
         return this;
     };
 
-    get_root(): BasePattern{
+    get_root(): PatternType{
         if (this.root === undefined){
             throw new Error(
                 `Root must be defined in ${this.language_name}`
