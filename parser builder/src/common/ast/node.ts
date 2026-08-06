@@ -76,7 +76,7 @@ export class NodeRegistry {
         return this.registry.has(id);
     }
 
-    public getRawMap(): Map<NodeID, NodeDefinition> {
+    public get_raw_map(): Map<NodeID, NodeDefinition> {
         return this.registry;
     }
 
