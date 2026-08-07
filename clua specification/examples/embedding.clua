@@ -1,5 +1,0 @@
-@Lua [&a] {
-    print(a)
-}
-
-print(__memory[a_region_const]) //presuming it's a bool, char or any type that has 1 byte, otherwise I have to read 4 more fields.
