@@ -1,15 +1,10 @@
-Objectives for tomorrow:
-Write parser code that would be generated from the pattern in the most base form.
-Pattern -> Emitted Code
-Then based on that define IR blocks (distinguish high level IR and low level IR).
-High level IR allows to reason how node handle is bound with variables which are created in the result of certain pattern.
-
-On top of that parser needs a method which returns upon recovering from error the NodeHandle and TokenSpan, where TokenSpan 
-contains information how long it took to recover from error. This token span is error token exclusive 
-(excludes error token which initiated the recovery it). (That's because I am using a new method for error recovery to determine which parsed language is out of error state the fastest)
-
-Every pattern implicitly that is created will have whitespace optionally ahead of itself unless explicitly disabled. They in most cases
-won't be anything meaningful, but the rule for them being expected can be switched off with .ws() method call that is inside of primitive pattern.
-
-Task of high IR is to explicitly handle whitespace 
-(emit from Pattern tokens explicitly the whitespace and create some kind of relationship with patterns)
+Problems to solve:
+    -Define all the data types that I will have to return (
+        NodeHandle {
+            CompilerNode {TokenSpanNode,ErrorNode,NodeChain},
+            UserDefinedNode {...}
+        },
+        Symbol //{different sets of symbols exist per language}
+    )
+    -Conversion of patterns to specific data types
+    -InvertedPattern creating their own form of NodeChain type.

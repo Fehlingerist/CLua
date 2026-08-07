@@ -1,14 +1,21 @@
 #pragma once
 
+#include <common/language_processing/base.hpp>
 #include <common/base.hpp>
 
 #include <common/language_processing/node_handle.hpp>
-#include <common/language_processing/tokens.hpp>
 
 #include <debugger/debugger.hpp>
 
 namespace AST {
     using NodeType = Common::uint16;
+
+    enum struct BaseTypes {
+        Invalid,
+        LinkedList,
+        TokenSpan,
+        NullNode,
+    };
 
     NodeType Invalid = 0;
     NodeType UErrorNode = Invalid;
@@ -19,18 +26,32 @@ namespace AST {
         ErrorCode None = 0;
     };
 
-    class BaseNode {
+    struct BaseNode {
         public:
         NodeType node_type = Invalid;
     };
 
-    class BaseErrorNode: public BaseNode {
-        Util::Lexer::TokenSpan error_span;
-        ErrorCode error_code = ErrorCodes::None;
-
-        BaseErrorNode(Util::Lexer::TokenSpan error_span): error_span(error_span)
-        {
-            node_type = UErrorNode;
-        };
+    //node_type = ... is not going to make an effect during initialization
+    //mainly because of how nodes are being created now
+    //that means that .node_type is not assigned automatically and it's only
+    //used here as a visual information for the user
+    struct LinkedNodeList: public BaseNode{
+        NodeType node_type = static_cast<NodeType>(BaseTypes::LinkedList);
+        NodeHandle value;
+        NodeHandle next;
     };
+
+    struct TokenSpanNode: public BaseNode{
+        NodeType node_type = static_cast<NodeType>(BaseTypes::TokenSpan);
+        Common::TokenSpan token_span;
+    };
+
+    struct BaseErrorNode: public BaseNode {
+        NodeHandle next_error_node;
+        NodeHandle ast_byproduct;//null_node by default 
+        Common::TokenSpan error_span;
+        ErrorCode error_code = ErrorCodes::None;
+    };
+
+    struct NullNode: public BaseNode {};
 }
